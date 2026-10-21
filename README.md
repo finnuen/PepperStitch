@@ -1,10 +1,25 @@
 # PepperStitch
 
-Compose photos into one wide or tall image. Pictures land in a library on the
-left; drag them onto the canvas, arrange them, and export a PNG, JPEG or WebP —
-no browser, no installer, no cloud.
+**PepperStitch is a Windows app that stitches photos into one wide or tall
+image** — a strip, a stack, or a free collage of your own. Pictures land in a
+library on the left; drag them onto the canvas, arrange them, and export the
+result at the originals' full resolution. One self-contained executable: no
+installer, no browser window, no cloud, no account.
 
 ![PepperStitch with four pictures on the canvas](docs/screenshot.png)
+
+- **Platform:** Windows 10 or 11, 64-bit. The only external piece is the
+  [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/),
+  which ships with both.
+- **Single file:** about 800 kB, runs from any folder, writes only to
+  `%LOCALAPPDATA%\PepperStitch`.
+- **Exports:** PNG, JPEG and WebP at full resolution, with transparent gaps in
+  PNG and WebP.
+- **Licence:** Apache 2.0 — free for personal or commercial use.
+
+It is a quick way to join a before-and-after pair, a step-by-step sequence, a
+strip of screenshots or a comic-style storyboard, without opening a full image
+editor.
 
 ## What it does
 
@@ -124,7 +139,7 @@ build.bat --debug     debug build
 build.bat --clean     delete the build tree first
 ```
 
-The result is `dist\PepperStitch_v1.0.0.exe`, a single file of about 700 kB. The
+The result is `dist\PepperStitch_v1.0.0.exe`, a single file of about 800 kB. The
 version number comes from `project(PepperStitch VERSION ...)` in
 `CMakeLists.txt`; that one line is what a release bumps. It names the executable,
 and it shows up as `PepperStitch_v1.0.0` in the title bar and in the app's own
