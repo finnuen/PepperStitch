@@ -1,0 +1,6 @@
+build/
+dist/
+*.user
+*.nupkg
+.vs/
+docs/screenshot-*.png

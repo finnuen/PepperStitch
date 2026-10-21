@@ -1,0 +1,54 @@
+// PepperStitch application resource script (icon + version information).
+//
+// Kept free of system headers so the resource compiler needs no include paths
+// beyond the build folder that holds the generated version header.
+
+#include "resource.h"
+
+// The version numbers, written by CMake from the one version in
+// CMakeLists.txt.
+#include "version_generated.h"
+
+#ifndef VS_VERSION_INFO
+#define VS_VERSION_INFO 1
+#endif
+#ifndef VS_FFI_FILEFLAGSMASK
+#define VS_FFI_FILEFLAGSMASK 0x0000003FL
+#endif
+#ifndef VOS_NT_WINDOWS32
+#define VOS_NT_WINDOWS32 0x00040000L
+#endif
+#ifndef VFT_APP
+#define VFT_APP 0x00000001L
+#endif
+
+IDI_APPICON ICON "app.ico"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION     PS_VERSION_COMMA
+ PRODUCTVERSION  PS_VERSION_COMMA
+ FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
+ FILEFLAGS       0x0L
+ FILEOS          VOS_NT_WINDOWS32
+ FILETYPE        VFT_APP
+ FILESUBTYPE     0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "CompanyName",      "PepperStitch"
+            VALUE "FileDescription",  "PepperStitch - image stitcher"
+            VALUE "FileVersion",      PS_VERSION_DOTTED
+            VALUE "InternalName",     "PepperStitch"
+            VALUE "LegalCopyright",   "Copyright 2026 the PepperStitch authors. Apache-2.0"
+            VALUE "OriginalFilename", PS_FILE_NAME
+            VALUE "ProductName",      "PepperStitch"
+            VALUE "ProductVersion",   PS_VERSION_DOTTED
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

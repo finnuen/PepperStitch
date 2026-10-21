@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; script-src 'self' file:; connect-src https://file.local https://save.local https://host.local; font-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>PepperStitch</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<input type="file" id="fileInput" multiple hidden
+       accept="image/png,image/jpeg,image/webp,image/avif,image/bmp,image/gif">
+
+<div class="app">
+
+  <!-- Title bar ------------------------------------------------------- -->
+  <header class="titlebar">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="1" y="1" width="30" height="30" rx="8" class="mark-tile"/>
+        <rect x="6.4" y="6.4" width="8.4" height="19.2" rx="2.2" class="mark-photo"/>
+        <rect x="17.2" y="6.4" width="8.4" height="19.2" rx="2.2" class="mark-accent"/>
+      </svg>
+      <span class="name" id="brandName">PepperStitch</span>
+    </div>
+
+    <div class="title-actions">
+      <button class="btn" id="addButton" title="Add images (Ctrl+O)">
+        <svg viewBox="0 0 16 16" class="glyph" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        Add images
+      </button>
+      <button class="btn quiet" id="clearButton" title="Remove every image">Clear</button>
+      <span class="sep"></span>
+      <div class="export-group">
+        <select id="format" class="select" title="Export format" aria-label="Export format">
+          <option value="png">PNG</option>
+          <option value="jpeg">JPEG</option>
+          <option value="webp">WebP</option>
+        </select>
+        <label class="quality" id="qualityField" title="Export quality">
+          <span class="quality-label">Quality</span>
+          <input type="range" id="quality" min="0.5" max="1" step="0.01" value="0.92" aria-label="Export quality">
+          <span class="quality-value" id="qualityValue">92</span>
+        </label>
+        <button class="btn primary" id="exportButton" title="Export (Ctrl+E)">Export</button>
+      </div>
+      <span class="sep"></span>
+      <button class="icon-button" id="undoButton" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
+        <svg viewBox="0 0 16 16" class="glyph" aria-hidden="true">
+          <path d="M12.4 12.4a4.8 4.8 0 0 0-4.8-4.8H3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="m6.4 4.8-3 2.8 3 2.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <button class="icon-button" id="redoButton" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled>
+        <svg viewBox="0 0 16 16" class="glyph" aria-hidden="true">
+          <path d="M3.6 12.4a4.8 4.8 0 0 1 4.8-4.8h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="m9.6 4.8 3 2.8-3 2.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <button class="icon-button" id="themeButton" title="Switch theme" aria-label="Switch theme">
+        <svg viewBox="0 0 16 16" class="glyph" aria-hidden="true"><path d="M8 2.2a5.8 5.8 0 1 0 5.8 5.8A4.6 4.6 0 0 1 8 2.2Z" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Body ------------------------------------------------------------ -->
+  <main class="body">
+
+    <!-- Filmstrip ----------------------------------------------------- -->
+    <aside class="rail">
+      <div class="rail-head">
+        <span>Images</span>
+        <span class="badge" id="imageCount">0</span>
+      </div>
+      <ol class="strip" id="strip" aria-label="Picture library"></ol>
+      <button class="add-tile" id="addTile">
+        <svg viewBox="0 0 16 16" class="glyph" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Add images
+      </button>
+      <p class="rail-hint">Click to add<br>Drag onto the canvas<br>Drag up or down to reorder</p>
+    </aside>
+
+    <!-- Stage --------------------------------------------------------- -->
+    <section class="stage" id="stage">
+      <div class="stage-scroll" id="stageScroll">
+        <div class="sheet" id="sheet">
+          <canvas id="canvas"></canvas>
+        </div>
+      </div>
+
+      <div class="empty" id="empty">
+        <div class="empty-card">
+          <div class="empty-icon">
+            <svg viewBox="0 0 48 48" aria-hidden="true">
+              <rect x="5" y="9" width="15" height="30" rx="3" class="ph-a"/>
+              <rect x="24" y="9" width="15" height="30" rx="3" class="ph-b"/>
+              <path d="M20 15v18M27 15v18" class="ph-cut"/>
+            </svg>
+          </div>
+          <h1 id="emptyTitle">Drop photos to place them</h1>
+          <p id="emptyText">Drop them anywhere, or choose images and drag them onto the canvas.</p>
+          <div class="empty-actions">
+            <button class="btn primary" id="emptyChoose">Choose images</button>
+            <span class="kbd-hint"><kbd>Ctrl</kbd><kbd>V</kbd> to paste</span>
+          </div>
+          <p class="formats">JPEG · PNG · WebP · AVIF · BMP · GIF</p>
+        </div>
+      </div>
+
+      <div class="zoom" id="zoom">
+        <button class="zoom-button" id="zoomOut" aria-label="Zoom out">−</button>
+        <button class="zoom-value" id="zoomValue" title="Reset to fit">Fit</button>
+        <button class="zoom-button" id="zoomIn" aria-label="Zoom in">+</button>
+      </div>
+
+      <div class="crop-bar" id="cropBar" hidden>
+        <span class="crop-bar-text">Drag a frame over the part to keep</span>
+        <span class="crop-ratio" title="Type a ratio: 16:9, 4/5, 3x2 or 1.5 — any of : / * - + ' separates the sides. Hold Shift for 1:1">
+          <label for="cropRatio">Ratio</label>
+          <input id="cropRatio" type="text" placeholder="Free" spellcheck="false" autocomplete="off">
+          <button type="button" class="crop-ratio-clear" id="cropRatioClear"
+                  title="Clear the ratio: the frame is then free-form" aria-label="Clear the ratio" hidden>×</button>
+        </span>
+        <button class="btn small primary" id="cropApply" title="Keep the crop (Enter)">Apply</button>
+        <button class="btn small" id="cropCancel" title="Leave the picture as it was (Esc)">Cancel</button>
+      </div>
+
+      <div class="limit" id="limit" hidden></div>
+    </section>
+
+    <!-- Settings ------------------------------------------------------ -->
+    <aside class="panel" id="panel">
+      <div class="panel-head">
+        <span>Layout</span>
+        <button class="link" id="resetButton">Reset</button>
+      </div>
+
+      <section class="group">
+        <label class="group-label">Preset</label>
+        <div class="segmented" data-key="preset">
+          <button data-value="horizontal" class="on" title="All pictures in one row">
+            <svg viewBox="0 0 16 16" class="glyph" aria-hidden="true"><rect x="2" y="4" width="5" height="8" rx="1"/><rect x="9" y="4" width="5" height="8" rx="1"/></svg>
+            Horizontal
+          </button>
+          <button data-value="vertical" title="All pictures in one column">
+            <svg viewBox="0 0 16 16" class="glyph" aria-hidden="true"><rect x="4" y="2" width="8" height="5" rx="1"/><rect x="4" y="9" width="8" height="5" rx="1"/></svg>
+            Vertical
+          </button>
+        </div>
+
+        <div class="align-row" role="group" aria-label="Align the pictures with each other">
+          <span class="align-label" aria-hidden="true">Align</span>
+          <button class="align-button" id="alignTop" title="Line the top edges up" aria-label="Align top">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path class="align-line" d="M3 3h10"/><rect x="4.4" y="5.2" width="2.6" height="7.6" rx="1"/><rect x="9" y="5.2" width="2.6" height="4.8" rx="1"/></svg>
+          </button>
+          <button class="align-button" id="alignMiddle" title="Centre the pictures down" aria-label="Align middle">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path class="align-line" d="M3 8h10"/><rect x="4.4" y="2.4" width="2.6" height="11.2" rx="1"/><rect x="9" y="4.6" width="2.6" height="6.8" rx="1"/></svg>
+          </button>
+          <button class="align-button" id="alignBottom" title="Line the bottom edges up" aria-label="Align bottom">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path class="align-line" d="M3 13h10"/><rect x="4.4" y="3.2" width="2.6" height="7.6" rx="1"/><rect x="9" y="6" width="2.6" height="4.8" rx="1"/></svg>
+          </button>
+          <span class="align-sep" aria-hidden="true"></span>
+          <button class="align-button" id="alignLeft" title="Line the left edges up" aria-label="Align left">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path class="align-line" d="M3 3v10"/><rect x="5.2" y="4.4" width="7.6" height="2.6" rx="1"/><rect x="5.2" y="9" width="4.8" height="2.6" rx="1"/></svg>
+          </button>
+          <button class="align-button" id="alignCentre" title="Centre the pictures across" aria-label="Align centre">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path class="align-line" d="M8 3v10"/><rect x="2.4" y="4.4" width="11.2" height="2.6" rx="1"/><rect x="4.6" y="9" width="6.8" height="2.6" rx="1"/></svg>
+          </button>
+          <button class="align-button" id="alignRight" title="Line the right edges up" aria-label="Align right">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path class="align-line" d="M13 3v10"/><rect x="3.2" y="4.4" width="7.6" height="2.6" rx="1"/><rect x="6" y="9" width="4.8" height="2.6" rx="1"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <section class="group">
+        <label class="toggle">
+          <span class="toggle-copy">
+            <span class="toggle-label">Even size</span>
+            <span class="toggle-hint" id="evenHint">Scaled to the tallest or widest one.</span>
+          </span>
+          <span class="switch">
+            <input type="checkbox" data-key="evenSize" aria-label="Even size">
+            <span class="track"></span>
+          </span>
+        </label>
+      </section>
+
+      <section class="group">
+        <div class="field">
+          <div class="field-head">
+            <label for="spacing">Spacing</label>
+            <span class="head-right">
+              <span class="unit">px</span>
+              <label class="switch" title="Turn spacing on or off">
+                <input type="checkbox" data-key="spacingOn" aria-label="Spacing on">
+                <span class="track"></span>
+              </label>
+            </span>
+          </div>
+          <div class="slider">
+            <input type="range" id="spacingRange" data-key="spacing" min="0" max="160" step="1">
+            <input type="number" id="spacing" data-key="spacing" min="0" max="4000" step="1">
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-head">
+            <label for="outer">Outer frame</label>
+            <span class="unit">px</span>
+          </div>
+          <div class="slider">
+            <input type="range" id="outerRange" data-key="outer" min="0" max="160" step="1">
+            <input type="number" id="outer" data-key="outer" min="0" max="4000" step="1">
+          </div>
+        </div>
+
+        <div class="colors">
+          <label class="swatch" title="The band around everything, drawn when Outer frame is above 0">
+            <input type="color" data-key="frameColor">
+            <span>Frame</span>
+          </label>
+          <label class="swatch" title="Fills the whole canvas in a JPEG export, which has no transparency">
+            <input type="color" data-key="backdrop">
+            <span>Backdrop</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="group">
+        <label class="group-label">Image border</label>
+        <div class="field">
+          <div class="field-head">
+            <label for="border">Thickness</label>
+            <span class="head-right">
+              <span class="unit">px</span>
+              <label class="switch" title="Turn the border on or off">
+                <input type="checkbox" data-key="borderOn" aria-label="Border on">
+                <span class="track"></span>
+              </label>
+            </span>
+          </div>
+          <div class="slider">
+            <input type="range" id="borderRange" data-key="border" min="0" max="60" step="1">
+            <input type="number" id="border" data-key="border" min="0" max="400" step="1">
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-head">
+            <label for="radius">Corner radius</label>
+            <span class="unit">px</span>
+          </div>
+          <div class="slider">
+            <input type="range" id="radiusRange" data-key="radius" min="0" max="120" step="1">
+            <input type="number" id="radius" data-key="radius" min="0" max="2000" step="1">
+          </div>
+        </div>
+
+        <div class="colors">
+          <label class="swatch">
+            <input type="color" data-key="borderColor">
+            <span>Border</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="group" id="selectionGroup" hidden>
+        <label class="group-label">Selected image</label>
+        <div class="selected">
+          <img id="selectedThumb" alt="">
+          <div class="selected-meta">
+            <span id="selectedName" class="selected-name"></span>
+            <span id="selectedSize" class="selected-size"></span>
+          </div>
+        </div>
+
+        <div class="button-grid">
+          <button class="btn" id="rotateButton">Rotate 90°</button>
+          <button class="btn" id="cropButton" title="Choose the part of the picture to keep (C)">Crop</button>
+          <button class="btn" id="duplicateButton">Duplicate</button>
+          <button class="btn danger" id="removeButton">Remove</button>
+        </div>
+      </section>
+
+      <p class="panel-note">
+        Drag a picture on the canvas to move it; pull the handles on the
+        selected one to size it at its own shape; scroll over it to make it
+        bigger or smaller; right-click one to rotate, flip or remove it.
+      </p>
+    </aside>
+  </main>
+
+  <!-- Status ------------------------------------------------------------ -->
+  <footer class="statusbar">
+    <span id="statusCount">No images</span>
+    <span class="dot"></span>
+    <span id="statusSize">—</span>
+    <span class="status-spacer"></span>
+    <span id="statusHint">Drop photos, or press Ctrl+O</span>
+    <span class="dot"></span>
+    <span id="statusVersion">PepperStitch</span>
+  </footer>
+</div>
+
+<!-- Overlays ------------------------------------------------------------ -->
+<div class="dropzone" id="dropzone" hidden>
+  <div class="dropzone-card">
+    <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 10v22M24 32l-8-8M24 32l8-8" class="dz-arrow"/><path d="M8 38h32" class="dz-line"/></svg>
+    <p>Drop to <span id="dropVerb">add</span></p>
+  </div>
+</div>
+
+<div class="busy" id="busy" hidden>
+  <div class="busy-card">
+    <div class="spinner"></div>
+    <p id="busyText">Working…</p>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
