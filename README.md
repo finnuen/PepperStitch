@@ -53,11 +53,12 @@ editor.
   composition stays where you put it. This switches Even size off, since the
   pictures no longer share an edge; turning it back on makes them even again.
   <kbd>Ctrl</kbd>+wheel still zooms the preview.
-- **Resize with the handles.** The selected picture carries eight handles. Drag
-  one and it grows or shrinks about the corner or edge opposite, keeping its own
-  proportions; the edge you are pulling snaps to the other pictures, so a
-  resized picture can be made to meet its neighbour exactly. Hold
-  <kbd>Shift</kbd> while pulling a handle and the snap steps aside.
+- **Selection is a highlight.** The picture under the pointer lightens, and the
+  selected one stays lit — nothing is drawn over the picture, so what you see is
+  the picture. Drag near an edge or a corner and it sizes, about the opposite
+  edge or corner, keeping its own proportions; the edge you are pulling snaps to
+  the other pictures, so a resized picture can be made to meet its neighbour
+  exactly. Hold <kbd>Shift</kbd> while pulling and the snap steps aside.
 - **Crop a picture.** Select one and press **Crop** (or <kbd>C</kbd>), drag a
   frame over the part to keep, then press <kbd>Enter</kbd> — the picture takes
   the crop's shape and keeps its place on the canvas. Pull the handles to adjust
@@ -91,7 +92,7 @@ Pictures arrive by drop, by **Add images** / <kbd>Ctrl</kbd>+<kbd>O</kbd>, by
 paste (<kbd>Ctrl</kbd>+<kbd>V</kbd>), or by passing them on the command line:
 
 ```
-PepperStitch_v1.0.1.exe photo1.jpg photo2.jpg photo3.jpg
+PepperStitch_v<version>.exe photo1.jpg photo2.jpg photo3.jpg
 ```
 
 A drop is area-aware: onto the library it only adds pictures there, onto the
@@ -148,14 +149,14 @@ build.bat --debug             debug build (never bumps)
 build.bat --clean             delete the build tree first
 ```
 
-The result is `dist\PepperStitch_v1.0.1.exe`, a single file of about 800 kB. The
+The result is `dist\PepperStitch_v<version>.exe`, a single file of about 800 kB. The
 version number lives in `project(PepperStitch VERSION ...)` in `CMakeLists.txt`,
 and `build.bat` moves the patch on by itself when a file under `src/` or
 `assets/` has changed since the last build, so a build cannot quietly carry a
 number that is already published. `--same` rebuilds without bumping;
 `--version` sets it outright, which is how a minor or major release is made.
 That one number names the executable, fills in the version resource, and shows
-up as `PepperStitch_v1.0.1` in the title bar and in the app's own header.
+up as `PepperStitch_v<version>` in the title bar and in the app's own header.
 Exported pictures keep the plain name.
 
 The interface is compiled into the executable as a resource, not shipped beside

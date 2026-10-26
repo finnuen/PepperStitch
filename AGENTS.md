@@ -164,8 +164,11 @@ pointer; the view returns to `'fit'` 600 ms after the last notch. Ctrl+wheel is
 still a zoom, wherever the pointer is, and a wheel over empty stage scrolls as
 it always did.
 
-The selected picture also carries eight handles, and pulling one sizes it
-(`startResize`, `resizePointerMove`). Every gesture keeps the picture's own
+The selected picture answers to eight handles, and pulling one sizes it
+(`startResize`, `resizePointerMove`). They are not drawn — the picture is lit
+instead — so the hit areas are the picture's own edges and corners, and the
+cursor is what says which one the pointer is on. Every gesture keeps the
+picture's own
 ratio: a corner follows the pointer along the diagonal — the two answers are
 averaged, so neither axis wins the tug of war the ratio sets up — and an edge
 drag takes the other side with it, centred on the edge that is not moving. The
@@ -177,7 +180,7 @@ one edge at a time: a neighbour's two
 edges, the two positions that leave `border + spacing`, and the canvas edge at
 `border`. Because the anchor does not move, a snap changes the size rather than
 the placement. `handleAt()` is shared with the crop frame; only the selected
-picture has handles, so a drag anywhere else still moves.
+picture answers to it, so a drag anywhere else still moves.
 
 The six align buttons under the preset (`alignAll`) are an action on the
 composition, like a preset: top, middle and bottom move every picture to the
@@ -225,10 +228,11 @@ source rectangle from `cell.crop` as fractions, so the same call crops the
 1800 px preview bitmap and the full-resolution one alike.
 The ring's outer radius is the corner radius plus its own thickness, except at
 radius 0 where it stays square: a picture with no rounding does not get rounded
-border corners. `paintSelection` adds a dashed outline around the selected cell
-and the eight resize handles on the picture's own rectangle — the ring outside
-it is not what a drag there sizes — in the preview only, and steps aside while a
-crop frame is up.
+border corners. Nothing is drawn over the selected picture: `paintPicture` takes
+a veil, and `veilFor()` gives the selected picture `SELECTED_VEIL` and the one
+under the pointer `HOVER_VEIL`, painted inside the picture's own clip. The veil
+is a preview argument only — export passes none — and `veilFor()` returns zero
+while a crop frame is up.
 
 ## Cropping
 
@@ -349,7 +353,7 @@ Enter or Escape.
 
 ## The name and the icon
 
-`AppDisplayName()` in `main.cpp` is the versioned name (`PepperStitch_v1.0.1`):
+`AppDisplayName()` in `main.cpp` is the versioned name (`PepperStitch_v<version>`):
 it titles the window, and the page sets its own title from the `?v=` the host
 appends, so the two agree and the title handler does not print the name twice.
 The header brand and the status bar read the same string from `setVersion()`.

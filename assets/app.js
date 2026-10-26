@@ -955,7 +955,7 @@ function paintRing(ctx, cell, border) {
   ctx.fill();
 }
 
-function paintPicture(ctx, cell, bitmap) {
+function paintPicture(ctx, cell, bitmap, veil = 0) {
   const radius = Math.max(0, Number(state.radius) || 0);
 
   ctx.save();
@@ -963,7 +963,42 @@ function paintPicture(ctx, cell, bitmap) {
   ctx.clip();
 
   drawFitted(ctx, bitmap, cell);
+
+  // The selection and the pointer are shown by lighting the picture itself
+  // rather than by drawing furniture around it: a wash of white over the
+  // picture's own pixels, inside the same clip, so a rounded picture is lit to
+  // its corners and a border ring is left alone.
+  if (veil > 0) {
+    ctx.fillStyle = `rgba(255, 255, 255, ${veil})`;
+    ctx.fillRect(cell.cx, cell.cy, cell.cw, cell.ch);
+  }
   ctx.restore();
+}
+
+// How much white the selected picture, and the one under the pointer, are
+// washed with.  A button lightens under the pointer for the same reason: it
+// says what is live without putting anything in front of the picture.
+const SELECTED_VEIL = 0.18;
+const HOVER_VEIL = 0.07;
+
+let hoverItemId = null;   // the picture under the pointer, if any
+
+// The pointer lights the picture it is over, so a click has something to aim
+// at.  Only a change redraws: a pointermove that stays over the same picture
+// costs nothing.
+function setHovered(id) {
+  if (hoverItemId === id) return;
+  hoverItemId = id;
+  scheduleRender();
+}
+
+function veilFor(item) {
+  // While a crop frame is up it is the selection, so the light goes with the
+  // outline it replaced.
+  if (cropEdit) return 0;
+  if (item.id === state.selectedItemId) return SELECTED_VEIL;
+  if (item.id === hoverItemId) return HOVER_VEIL;
+  return 0;
 }
 
 // The picture fills its own cell: a cell is given the picture's shape when it
@@ -1019,54 +1054,6 @@ function paintBackground(ctx, layout, scale, opaque = false) {
   if (!opaque) {
     ctx.clearRect(layout.outer, layout.outer,
                   layout.width - layout.outer * 2, layout.height - layout.outer * 2);
-  }
-  ctx.restore();
-}
-
-// A dashed outline around the selected picture, with the eight handles that
-// size it, drawn over the preview only.
-function paintSelection(ctx, layout, scale) {
-  if (cropEdit) return;   // the crop frame is the selection while it is up
-  const item = state.items.find((candidate) => candidate.id === state.selectedItemId);
-  if (!item) return;
-  const cell = layout.cells.find((candidate) => candidate.item === item);
-  if (!cell) return;
-
-  const accent = getComputedStyle(document.documentElement)
-    .getPropertyValue('--accent').trim() || '#4c9ffe';
-
-  ctx.save();
-  ctx.scale(scale, scale);
-  ctx.strokeStyle = accent;
-  ctx.lineWidth = 1.5 / scale;
-  ctx.setLineDash([6 / scale, 4 / scale]);
-  ctx.strokeRect(
-    cell.x - 1 / scale,
-    cell.y - 1 / scale,
-    cell.w + 2 / scale,
-    cell.h + 2 / scale,
-  );
-
-  // The handles sit on the picture's own rectangle rather than on the cell: the
-  // ring is drawn outside the picture and is not what a drag here sizes.  Solid
-  // and square, so they read as something to grab against the dashed outline.
-  const picture = pictureRect(cell);
-  const size = HANDLE_SIZE_SCREEN_PX / scale;
-  ctx.setLineDash([]);
-  ctx.fillStyle = '#ffffff';
-  ctx.strokeStyle = accent;
-  ctx.lineWidth = 1 / scale;
-  for (const name of HANDLES) {
-    const hx = name.includes('w') ? picture.x
-      : name.includes('e') ? picture.x + picture.w
-        : picture.x + picture.w / 2;
-    const hy = name.includes('n') ? picture.y
-      : name.includes('s') ? picture.y + picture.h
-        : picture.y + picture.h / 2;
-    ctx.beginPath();
-    ctx.rect(hx - size / 2, hy - size / 2, size, size);
-    ctx.fill();
-    ctx.stroke();
   }
   ctx.restore();
 }
@@ -1769,11 +1756,10 @@ function render() {
     if (!cell.source || !cell.source.bitmap) continue;
     context.save();
     context.scale(renderScale, renderScale);
-    paintPicture(context, cell, cell.source.bitmap);
+    paintPicture(context, cell, cell.source.bitmap, veilFor(cell.item));
     context.restore();
   }
 
-  paintSelection(context, layout, renderScale);
   paintCrop(context, layout, renderScale);
 
   updateStatus(layout);
@@ -2163,7 +2149,6 @@ function updateSelectionPanel() {
 
 const SNAP_SCREEN_PX = 9;
 const RESIZE_HANDLE_SCREEN_PX = 11;   // how close to a handle counts as on it
-const HANDLE_SIZE_SCREEN_PX = 8;      // the square drawn at each edge and corner
 
 // Pointer position in canvas coordinates (output pixels, before the outer mat).
 function layoutPoint(clientX, clientY) {
@@ -2515,10 +2500,15 @@ function bindCanvas() {
       : null;
     if (handle) {
       els.canvas.style.cursor = resizeCursor(handle);
+      setHovered(state.selectedItemId);
       return;
     }
-    els.canvas.style.cursor = itemAt(layout, x, y) ? 'grab' : 'default';
+    const item = itemAt(layout, x, y);
+    els.canvas.style.cursor = item ? 'grab' : 'default';
+    setHovered(item ? item.id : null);
   });
+
+  els.canvas.addEventListener('pointerleave', () => setHovered(null));
 
   els.canvas.addEventListener('contextmenu', (event) => {
     event.preventDefault();
