@@ -2341,25 +2341,28 @@ function resizePointerMove(event) {
 
   // Snapping works on the edge under the hand: the corner or side opposite it
   // stays where it was, so a snap changes the size rather than the position.
+  // Shift steps aside, the way it does for a move.
   const threshold = SNAP_SCREEN_PX / drag.scale;
-  if (horizontal) {
-    const anchor = handle.includes('e') ? start.x : start.x + start.w;
-    const edge = handle.includes('e') ? anchor + w : anchor - w;
-    const snapped = snapEdge(edge, 'x', item, threshold);
-    const snappedW = handle.includes('e') ? snapped - anchor : anchor - snapped;
-    if (snapped !== edge && snappedW >= MIN_ITEM_SIDE) {
-      w = snappedW;
-      h = w / aspect;
+  if (!event.shiftKey) {
+    if (horizontal) {
+      const anchor = handle.includes('e') ? start.x : start.x + start.w;
+      const edge = handle.includes('e') ? anchor + w : anchor - w;
+      const snapped = snapEdge(edge, 'x', item, threshold);
+      const snappedW = handle.includes('e') ? snapped - anchor : anchor - snapped;
+      if (snapped !== edge && snappedW >= MIN_ITEM_SIDE) {
+        w = snappedW;
+        h = w / aspect;
+      }
     }
-  }
-  if (vertical) {
-    const anchor = handle.includes('s') ? start.y : start.y + start.h;
-    const edge = handle.includes('s') ? anchor + h : anchor - h;
-    const snapped = snapEdge(edge, 'y', item, threshold);
-    const snappedH = handle.includes('s') ? snapped - anchor : anchor - snapped;
-    if (snapped !== edge && snappedH >= MIN_ITEM_SIDE) {
-      h = snappedH;
-      w = h * aspect;
+    if (vertical) {
+      const anchor = handle.includes('s') ? start.y : start.y + start.h;
+      const edge = handle.includes('s') ? anchor + h : anchor - h;
+      const snapped = snapEdge(edge, 'y', item, threshold);
+      const snappedH = handle.includes('s') ? snapped - anchor : anchor - snapped;
+      if (snapped !== edge && snappedH >= MIN_ITEM_SIDE) {
+        h = snappedH;
+        w = h * aspect;
+      }
     }
   }
 
@@ -2460,7 +2463,9 @@ function bindCanvas() {
     const { item } = canvasDrag;
     item.x = Math.round(canvasDrag.startX + dx);
     item.y = Math.round(canvasDrag.startY + dy);
-    snapItem(item);
+    // Shift places the picture exactly where the pointer is: no edge, centre
+    // or gap is allowed to pull it off the line the hand drew.
+    if (!event.shiftKey) snapItem(item);
     clampItem(item);
     scheduleRender();
   });
@@ -2965,22 +2970,19 @@ function bindControls() {
       removeItem(item.id);
       return;
     }
-    if (event.altKey && event.key.startsWith('Arrow') && item) {
+    // Arrows nudge the selected picture a pixel at a time, and Shift makes that
+    // ten.  They no longer step the selection, so a nudge never has to share a
+    // key with it; Alt is not looked at, which also keeps it from reaching the
+    // engine's back and forward.
+    if (!ctrl && event.key.startsWith('Arrow') && item) {
       event.preventDefault();
-      const step = event.shiftKey ? 1 : 10;
+      const step = event.shiftKey ? 10 : 1;
       if (event.key === 'ArrowLeft') item.x -= step;
       if (event.key === 'ArrowRight') item.x += step;
       if (event.key === 'ArrowUp') item.y -= step;
       if (event.key === 'ArrowDown') item.y += step;
       clampItem(item);
       scheduleRender();
-      return;
-    }
-    if ((event.key === 'ArrowUp' || event.key === 'ArrowDown') && item) {
-      event.preventDefault();
-      const index = state.items.indexOf(item);
-      const next = clamp(index + (event.key === 'ArrowUp' ? -1 : 1), 0, state.items.length - 1);
-      selectItem(state.items[next].id);
     }
   });
 

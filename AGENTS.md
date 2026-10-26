@@ -12,14 +12,16 @@ code.
 
 ```bat
 build.bat
+build.bat --same
+build.bat --version 1.2.3
 build.bat --debug
 build.bat --clean
 build.bat --webview2 "<...>\Microsoft.Web.WebView2.1.0.4258.31\build\native"
 ```
 
 `build.bat` prefers MSVC when it finds it and falls back to MinGW-w64
-(`g++`, `mingw32-make`, `windres` on `PATH`). It writes `dist\PepperStitch.exe`.
-The build directory is `build\`.
+(`g++`, `mingw32-make`, `windres` on `PATH`). It writes
+`dist\PepperStitch_v<version>.exe`. The build directory is `build\`.
 
 Without `--webview2`, CMake downloads the WebView2 SDK from NuGet at configure
 time. An already unpacked SDK avoids the download; on this machine there is one
@@ -27,7 +29,14 @@ at `..\JustViewMD\build\_deps\webview2\extracted\build\native`.
 
 The version lives in one place: `project(PepperStitch VERSION x.y.z ...)` in
 `CMakeLists.txt`. CMake generates `version_generated.h` and the app.rc version
-block from it.
+block from it, and names the executable after it.
+
+`build.bat` bumps PATCH by itself when a file under `src/` or `assets/` is newer
+than the last successful build, through `tools/bump-version.ps1`, which stamps
+`build\.ps-version-stamp` once the exe has been copied. A change therefore
+cannot ship under a number that is already published. `--same` rebuilds without
+bumping, `--version` sets the number outright, and a debug build never bumps.
+The stamp sits inside `build\`, so `--clean` makes the next build bump.
 
 ## Layout
 
@@ -162,8 +171,9 @@ averaged, so neither axis wins the tug of war the ratio sets up — and an edge
 drag takes the other side with it, centred on the edge that is not moving. The
 corner or edge opposite the one held stays where it was. `releaseEvenSize()`
 steps aside the way the wheel does, and the view is frozen for the gesture the
-same way a move freezes it. The moving edge snaps through `snapEdge()`, which is
-`snapItem()`'s candidate set applied one edge at a time: a neighbour's two
+same way a move freezes it. The moving edge snaps through `snapEdge()`, unless
+<kbd>Shift</kbd> is held. `snapEdge()` is `snapItem()`'s candidate set applied
+one edge at a time: a neighbour's two
 edges, the two positions that leave `border + spacing`, and the canvas edge at
 `border`. Because the anchor does not move, a snap changes the size rather than
 the placement. `handleAt()` is shared with the crop frame; only the selected
@@ -190,7 +200,14 @@ rather than cell coordinates, because the rings of two neighbours share their
 pixels: it looks at the other pictures' two edges, the position that leaves
 `border + spacing` between the pictures, the aligned opposite edge and the centre
 line, plus the canvas edge at `border`, with a threshold of 9 screen pixels
-divided by the preview scale.
+divided by the preview scale. <kbd>Shift</kbd> during the drag skips
+`snapItem()` entirely, and the same flag skips `snapEdge()` in
+`resizePointerMove()`, so a picture can be put exactly where the pointer says.
+
+The arrow keys nudge the selected picture — 1 px, or 10 px with <kbd>Shift</kbd>
+— through `clampItem()` and `scheduleRender()`, so a run of nudges lands in the
+history as one step. They no longer step the selection: arrows are the move key
+and nothing else.
 
 `paintBackground` paints no background at all: only an outer frame is drawn,
 as a band, and the inside is cleared again so the gaps between pictures stay
@@ -299,11 +316,14 @@ from.
 | library | × | remove the source and every item drawn from it |
 | library | right-click | nothing |
 | canvas | click / drag | select and move; snaps to neighbours |
+| canvas | drag with <kbd>Shift</kbd> | move without snapping |
 | canvas | drag a handle | size the selected picture at its own ratio; snaps to the others |
+| canvas | drag a handle with <kbd>Shift</kbd> | size without snapping |
 | canvas | wheel | resize the picture under the pointer, about its centre |
 | canvas | right-click | Rotate 90°, Flip horizontal, Flip vertical, Remove |
 | preset | align buttons | line the pictures up, one axis at a time: the row's tops for Horizontal, the column's lefts for Vertical |
 | header | Undo / Redo | step back or forward through the composition |
+| keyboard | arrow | nudge the selected picture 1 px; <kbd>Shift</kbd> makes it 10 px |
 | keyboard | <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> | the same, or <kbd>Ctrl</kbd>+<kbd>Y</kbd> for redo |
 | crop frame | drag inside | draw a new frame, or move it once it is smaller |
 | crop frame | drag a handle | resize that edge or corner, holding the ratio |
@@ -329,15 +349,16 @@ Enter or Escape.
 
 ## The name and the icon
 
-`AppDisplayName()` in `main.cpp` is the versioned name (`PepperStitch_v1.0.0`):
+`AppDisplayName()` in `main.cpp` is the versioned name (`PepperStitch_v1.0.1`):
 it titles the window, and the page sets its own title from the `?v=` the host
 appends, so the two agree and the title handler does not print the name twice.
 The header brand and the status bar read the same string from `setVersion()`.
 The executable carries it too — `OUTPUT_NAME` in `CMakeLists.txt` is
-`PepperStitch_v${PROJECT_VERSION}`, which is why `build.bat` reads the version
-out of `CMakeLists.txt` rather than repeating it, and why the version block in
-`app.rc` uses the generated `PS_FILE_NAME`. The exported picture keeps the plain
-name; only the program and the interface carry the version.
+`PepperStitch_v${PROJECT_VERSION}`, which is why `build.bat` takes the version
+from `CMakeLists.txt` (bumping it first) rather than repeating it, and why the
+version block in `app.rc` uses the generated `PS_FILE_NAME`. The exported
+picture keeps the plain name; only the program and the interface carry the
+version.
 
 That version block also states the licence: `LegalCopyright` reads "Copyright
 2026 the PepperStitch authors. Apache-2.0", which is what Explorer's Details tab

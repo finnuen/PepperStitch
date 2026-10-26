@@ -32,8 +32,11 @@ editor.
 - **Arrange, then free.** The two presets are actions: Horizontal and Vertical
   pack the pictures once, in the order they stand in the library — so putting the
   list in a different order and pressing a preset re-packs the row or column to
-  match. After that every picture is free — drag it anywhere. A drag snaps to a
-  neighbour's edges and centres, so pictures meet at the spacing you asked for.
+  match. After that every picture is free — drag it anywhere, or nudge it with
+  the arrow keys, a pixel at a time (ten with <kbd>Shift</kbd>). A drag snaps to
+  a neighbour's edges and centres, so pictures meet at the spacing you asked
+  for; hold <kbd>Shift</kbd> while dragging and it goes exactly where the
+  pointer is instead.
 - **Line the pictures up.** Six buttons under the preset tidy the whole
   composition along one axis, and the preset picks the three that apply: a row
   is lined up by its tops, middles or bottoms, a column by its lefts, centres or
@@ -53,7 +56,8 @@ editor.
 - **Resize with the handles.** The selected picture carries eight handles. Drag
   one and it grows or shrinks about the corner or edge opposite, keeping its own
   proportions; the edge you are pulling snaps to the other pictures, so a
-  resized picture can be made to meet its neighbour exactly.
+  resized picture can be made to meet its neighbour exactly. Hold
+  <kbd>Shift</kbd> while pulling a handle and the snap steps aside.
 - **Crop a picture.** Select one and press **Crop** (or <kbd>C</kbd>), drag a
   frame over the part to keep, then press <kbd>Enter</kbd> — the picture takes
   the crop's shape and keeps its place on the canvas. Pull the handles to adjust
@@ -87,7 +91,7 @@ Pictures arrive by drop, by **Add images** / <kbd>Ctrl</kbd>+<kbd>O</kbd>, by
 paste (<kbd>Ctrl</kbd>+<kbd>V</kbd>), or by passing them on the command line:
 
 ```
-PepperStitch_v1.0.0.exe photo1.jpg photo2.jpg photo3.jpg
+PepperStitch_v1.0.1.exe photo1.jpg photo2.jpg photo3.jpg
 ```
 
 A drop is area-aware: onto the library it only adds pictures there, onto the
@@ -105,9 +109,12 @@ canvas it adds them to the library and places them where you let go.
 | <kbd>C</kbd> | Crop the selected picture |
 | <kbd>Shift</kbd>+drag (crop) | Keep the crop frame at 1:1 |
 | <kbd>Enter</kbd> / <kbd>Esc</kbd> | Keep or drop the crop frame |
-| <kbd>↑</kbd> / <kbd>↓</kbd> | Select the previous or next picture on the canvas |
-| <kbd>Alt</kbd>+arrow | Move the selected picture by 10 px (with <kbd>Shift</kbd>, 1 px) |
+| arrow | Move the selected picture by 1 px |
+| <kbd>Shift</kbd>+arrow | Move it by 10 px |
 | <kbd>Delete</kbd> | Remove the selected picture from the canvas |
+
+Hold <kbd>Shift</kbd> while dragging a picture, or while pulling one of its
+resize handles, and it stops snapping: it goes exactly where the pointer says.
 
 ## Requirements
 
@@ -135,15 +142,21 @@ build.bat --webview2 "C:\path\to\Microsoft.Web.WebView2.1.0.4258.31\build\native
 Other switches:
 
 ```
-build.bat --debug     debug build
-build.bat --clean     delete the build tree first
+build.bat --same              rebuild the current version
+build.bat --version 1.2.3     set the version, then build
+build.bat --debug             debug build (never bumps)
+build.bat --clean             delete the build tree first
 ```
 
-The result is `dist\PepperStitch_v1.0.0.exe`, a single file of about 800 kB. The
-version number comes from `project(PepperStitch VERSION ...)` in
-`CMakeLists.txt`; that one line is what a release bumps. It names the executable,
-and it shows up as `PepperStitch_v1.0.0` in the title bar and in the app's own
-header. Exported pictures keep the plain name.
+The result is `dist\PepperStitch_v1.0.1.exe`, a single file of about 800 kB. The
+version number lives in `project(PepperStitch VERSION ...)` in `CMakeLists.txt`,
+and `build.bat` moves the patch on by itself when a file under `src/` or
+`assets/` has changed since the last build, so a build cannot quietly carry a
+number that is already published. `--same` rebuilds without bumping;
+`--version` sets it outright, which is how a minor or major release is made.
+That one number names the executable, fills in the version resource, and shows
+up as `PepperStitch_v1.0.1` in the title bar and in the app's own header.
+Exported pictures keep the plain name.
 
 The interface is compiled into the executable as a resource, not shipped beside
 it. On start-up it is unpacked into `%LOCALAPPDATA%\PepperStitch\assets`, so the
@@ -157,6 +170,7 @@ src/app.rc          Icon, version info, front-end and loader resources
 assets/             index.html, style.css, app.js — the whole interface
 tools/make-icon.ps1 regenerates src/app.ico and docs/icon.png
 tools/dev-server.ps1 serves assets/ for working in a browser
+tools/bump-version.ps1 keeps the version in CMakeLists.txt in step
 ```
 
 The host is a plain Win32 window with a WebView2 in it. The page is served from
