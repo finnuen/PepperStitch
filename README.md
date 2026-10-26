@@ -55,10 +55,12 @@ editor.
   <kbd>Ctrl</kbd>+wheel still zooms the preview.
 - **Selection is a highlight.** The picture under the pointer lightens, and the
   selected one stays lit — nothing is drawn over the picture, so what you see is
-  the picture. Drag near an edge or a corner and it sizes, about the opposite
-  edge or corner, keeping its own proportions; the edge you are pulling snaps to
-  the other pictures, so a resized picture can be made to meet its neighbour
-  exactly. Hold <kbd>Shift</kbd> while pulling and the snap steps aside.
+  the picture. The whole of each side is the handle: drag anywhere along an
+  edge, or on a corner, and the picture sizes about the opposite side, keeping
+  its own proportions. The edge you are pulling snaps to the other pictures, so
+  a resized picture can be made to meet its neighbour exactly; hold
+  <kbd>Shift</kbd> while pulling and the snap steps aside. Click the dark area
+  around the canvas or press <kbd>Esc</kbd> and nothing is selected at all.
 - **Crop a picture.** Select one and press **Crop** (or <kbd>C</kbd>), drag a
   frame over the part to keep, then press <kbd>Enter</kbd> — the picture takes
   the crop's shape and keeps its place on the canvas. Pull the handles to adjust
@@ -113,6 +115,7 @@ canvas it adds them to the library and places them where you let go.
 | arrow | Move the selected picture by 1 px |
 | <kbd>Shift</kbd>+arrow | Move it by 10 px |
 | <kbd>Delete</kbd> | Remove the selected picture from the canvas |
+| <kbd>Esc</kbd> | Let go of the selection, so nothing is selected |
 
 Hold <kbd>Shift</kbd> while dragging a picture, or while pulling one of its
 resize handles, and it stops snapping: it goes exactly where the pointer says.

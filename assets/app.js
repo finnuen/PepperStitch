@@ -1153,6 +1153,25 @@ function handleAt(rect, x, y, tolerance) {
   return null;
 }
 
+// The selected picture has no handles to aim at, so the whole side sizes it,
+// not just the midpoint the squares used to sit on.  Corners keep their own
+// zones, the interior is still the move zone, and the two axes are measured
+// separately so a point diagonally off a corner is still that corner.
+function resizeHandleAt(rect, x, y, tolerance) {
+  if (x < rect.x - tolerance || x > rect.x + rect.w + tolerance) return null;
+  if (y < rect.y - tolerance || y > rect.y + rect.h + tolerance) return null;
+
+  const horizontal = Math.abs(x - rect.x) <= tolerance ? 'w'
+    : Math.abs(x - (rect.x + rect.w)) <= tolerance ? 'e'
+      : null;
+  const vertical = Math.abs(y - rect.y) <= tolerance ? 'n'
+    : Math.abs(y - (rect.y + rect.h)) <= tolerance ? 's'
+      : null;
+
+  if (horizontal && vertical) return vertical + horizontal;
+  return horizontal || vertical;
+}
+
 // A ratio is width over height, and the two sides can be separated by whichever
 // symbol is nearest the fingers: "16:9", "4/5", "3x2", "16*9", "16-9", "16+9",
 // "16'9".  One number on its own is a ratio too, as in "1.5".
@@ -2043,6 +2062,9 @@ function onMenuPointerDown(event) {
 function onMenuKeyDown(event) {
   if (event.key !== 'Escape') return;
   event.preventDefault();
+  // The menu takes the key: Escape closes it and nothing else, rather than
+  // closing it and dropping the selection in the same press.
+  event.stopPropagation();
   closeImageMenu();
 }
 
@@ -2148,7 +2170,7 @@ function updateSelectionPanel() {
 // ---------------------------------------------------------------------------
 
 const SNAP_SCREEN_PX = 9;
-const RESIZE_HANDLE_SCREEN_PX = 11;   // how close to a handle counts as on it
+const RESIZE_HANDLE_SCREEN_PX = 11;   // how close to an edge or corner sizes it
 
 // Pointer position in canvas coordinates (output pixels, before the outer mat).
 function layoutPoint(clientX, clientY) {
@@ -2398,7 +2420,7 @@ function bindCanvas() {
     // the pointer is over it, and a drag would otherwise move the picture.
     const picture = selectedPictureRect(layout);
     const handle = picture
-      ? handleAt(picture, x, y, RESIZE_HANDLE_SCREEN_PX / scale)
+      ? resizeHandleAt(picture, x, y, RESIZE_HANDLE_SCREEN_PX / scale)
       : null;
     if (handle) {
       startResize(selectedItem(), handle, event, scale);
@@ -2428,6 +2450,15 @@ function bindCanvas() {
       moved: false,
     };
     els.canvas.style.cursor = 'grabbing';
+  });
+
+  // A press on the stage around the canvas lets go of the selection.  The canvas
+  // itself does the same when the point misses every picture, so between them
+  // there is always a way to have nothing selected at all.
+  els.stage.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || cropEdit) return;
+    if (els.canvas.contains(event.target)) return;
+    selectItem(null);
   });
 
   window.addEventListener('pointermove', (event) => {
@@ -2496,7 +2527,7 @@ function bindCanvas() {
     const y = (event.clientY - rect.top) / scale;
     const picture = selectedPictureRect(layout);
     const handle = picture
-      ? handleAt(picture, x, y, RESIZE_HANDLE_SCREEN_PX / scale)
+      ? resizeHandleAt(picture, x, y, RESIZE_HANDLE_SCREEN_PX / scale)
       : null;
     if (handle) {
       els.canvas.style.cursor = resizeCursor(handle);
@@ -2931,6 +2962,16 @@ function bindControls() {
     }
     const target = document.activeElement;
     if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA')) return;
+
+    // With no crop frame up, Escape lets go of the selection: no picture is
+    // selected, so the panel closes and the arrow keys stop moving anything.
+    if (!ctrl && event.key === 'Escape') {
+      if (state.selectedItemId !== null) {
+        event.preventDefault();
+        selectItem(null);
+      }
+      return;
+    }
 
     // Undo and redo step through the composition, one action at a time.
     if (ctrl && event.key.toLowerCase() === 'z') {

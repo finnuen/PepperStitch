@@ -166,9 +166,10 @@ it always did.
 
 The selected picture answers to eight handles, and pulling one sizes it
 (`startResize`, `resizePointerMove`). They are not drawn — the picture is lit
-instead — so the hit areas are the picture's own edges and corners, and the
-cursor is what says which one the pointer is on. Every gesture keeps the
-picture's own
+instead — so `resizeHandleAt()` makes the whole of each side a hit area, not
+just the midpoint a square used to sit on: the corners keep their own zones and
+the interior stays the move zone, and the cursor says which one the pointer is
+on. Every gesture keeps the picture's own
 ratio: a corner follows the pointer along the diagonal — the two answers are
 averaged, so neither axis wins the tug of war the ratio sets up — and an edge
 drag takes the other side with it, centred on the edge that is not moving. The
@@ -179,8 +180,9 @@ same way a move freezes it. The moving edge snaps through `snapEdge()`, unless
 one edge at a time: a neighbour's two
 edges, the two positions that leave `border + spacing`, and the canvas edge at
 `border`. Because the anchor does not move, a snap changes the size rather than
-the placement. `handleAt()` is shared with the crop frame; only the selected
-picture answers to it, so a drag anywhere else still moves.
+the placement. `handleAt()` belongs to the crop frame, whose handles are drawn
+and stay at the eight points; `resizeHandleAt()` is the picture's. A drag
+anywhere else still moves.
 
 The six align buttons under the preset (`alignAll`) are an action on the
 composition, like a preset: top, middle and bottom move every picture to the
@@ -321,8 +323,11 @@ from.
 | library | right-click | nothing |
 | canvas | click / drag | select and move; snaps to neighbours |
 | canvas | drag with <kbd>Shift</kbd> | move without snapping |
-| canvas | drag a handle | size the selected picture at its own ratio; snaps to the others |
-| canvas | drag a handle with <kbd>Shift</kbd> | size without snapping |
+| canvas | drag an edge or corner | size the selected picture at its own ratio; snaps to the others |
+| canvas | drag an edge or corner with <kbd>Shift</kbd> | size without snapping |
+| canvas | press the stage around the canvas | nothing is selected |
+| canvas | click a gap between pictures | nothing is selected |
+| keyboard | <kbd>Esc</kbd> | nothing is selected, when no crop frame is up |
 | canvas | wheel | resize the picture under the pointer, about its centre |
 | canvas | right-click | Rotate 90°, Flip horizontal, Flip vertical, Remove |
 | preset | align buttons | line the pictures up, one axis at a time: the row's tops for Horizontal, the column's lefts for Vertical |
