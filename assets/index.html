@@ -79,7 +79,7 @@
         <svg viewBox="0 0 16 16" class="glyph" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         Add images
       </button>
-      <p class="rail-hint">Click to add<br>Drag onto the canvas<br>Drag up or down to reorder</p>
+      <p class="rail-hint">Click to place or select<br>Drag onto the canvas<br>Drag up or down to restack</p>
     </aside>
 
     <!-- Stage --------------------------------------------------------- -->
@@ -277,6 +277,8 @@
         </div>
 
         <div class="button-grid">
+          <button class="btn" id="frontButton" title="Bring this picture in front of the others">Bring to front</button>
+          <button class="btn" id="backButton" title="Send this picture behind the others">Send to back</button>
           <button class="btn" id="rotateButton">Rotate 90°</button>
           <button class="btn" id="cropButton" title="Choose the part of the picture to keep (C)">Crop</button>
           <button class="btn" id="duplicateButton">Duplicate</button>
@@ -285,10 +287,11 @@
       </section>
 
       <p class="panel-note">
-        Drag a picture on the canvas to move it; drag any edge or corner of the
-        selected one to size it at its own shape; scroll over it to make it
-        bigger or smaller; right-click one to rotate, flip or remove it. Press
-        <kbd>Esc</kbd> to let go of the selection.
+        The list on the left is the stacking order: the first picture there is in
+        front. Drag a picture on the canvas to move it; drag any edge or corner of
+        the selected one to size it at its own shape; scroll over it to make it
+        bigger or smaller; right-click one for the rest. Press <kbd>Esc</kbd> to
+        let go of the selection.
       </p>
     </aside>
   </main>

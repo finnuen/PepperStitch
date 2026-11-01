@@ -129,6 +129,8 @@ const els = {
   selectedThumb: $('selectedThumb'),
   selectedName: $('selectedName'),
   selectedSize: $('selectedSize'),
+  frontButton: $('frontButton'),
+  backButton: $('backButton'),
   rotateButton: $('rotateButton'),
   cropButton: $('cropButton'),
   duplicateButton: $('duplicateButton'),
@@ -614,20 +616,51 @@ function clearImages() {
   scheduleRender();
 }
 
-function duplicateItem(id) {
+// A duplicate is its own entry in the list rather than a second copy hidden
+// behind one row: the list is the hierarchy, so a copy needs a place of its own
+// to be brought forward or sent back to.  The pixels are decoded again instead
+// of shared, so each row owns the bitmap it closes when the row goes.
+async function duplicateItem(id) {
   const original = state.items.find((item) => item.id === id);
   if (!original) return;
+  const source = sourceById(original.sourceId);
+  if (!source) return;
 
-  const copy = { ...original, id: nextItemId++ };
-  state.items.push(copy);
+  const copy = await makeSource({
+    blob: source.blob,
+    name: source.name,
+    type: source.blob.type,
+    path: source.path,
+  });
+  if (!copy) return;
+  copy.copyOf = source.id;
+
+  // The decode is asynchronous, so the row can have gone while it ran.
+  if (!state.sources.includes(source) || !state.items.some((item) => item.id === id)) {
+    releaseSource(copy);
+    return;
+  }
+
+  // Right behind the original, so the two stand together in the stacking order
+  // until one of them is dragged elsewhere in the list.
+  state.sources.splice(state.sources.indexOf(source) + 1, 0, copy);
+
+  // The copy starts as the original looks: same rotation, flips, crop and size.
+  const item = {
+    ...original,
+    id: nextItemId++,
+    sourceId: copy.id,
+    crop: original.crop ? { ...original.crop } : null,
+  };
+  state.items.push(item);
 
   // The copy lands immediately to the right of the original.
   const border = borderPx();
-  copy.x = original.x + original.w + border * 2 + spacingPx();
-  copy.y = original.y;
-  clampItem(copy);
+  item.x = original.x + original.w + border * 2 + spacingPx();
+  item.y = original.y;
+  clampItem(item);
 
-  state.selectedItemId = copy.id;
+  state.selectedItemId = item.id;
   renderStrip();
   updateSelectionPanel();
   scheduleRender();
@@ -756,6 +789,12 @@ function slideForBorder(delta) {
   }
 }
 
+// Where each picture stands in the library.  The list is the hierarchy: the
+// first entry is in front of everything under it.
+function libraryOrder() {
+  return new Map(state.sources.map((source, index) => [source.id, index]));
+}
+
 function computeLayout() {
   if (!state.items.length) return null;
 
@@ -787,6 +826,16 @@ function computeLayout() {
     cells.push(cell);
   }
 
+  // The list is the hierarchy, and the first entry is in front, so the cells are
+  // sorted to draw it last.  Only the cells are sorted: `state.items` keeps the
+  // order things were placed in, so a reordered list restacks the canvas without
+  // moving a single picture, and the hit test, the preview and the export all
+  // read the same order.  Copies of one picture keep the order they were placed
+  // in, since the sort is stable.
+  const place = libraryOrder();
+  cells.sort((a, b) =>
+    (place.get(b.item.sourceId) ?? Infinity) - (place.get(a.item.sourceId) ?? Infinity));
+
   return {
     width: Math.max(1, Math.round(maxX + outer)),
     height: Math.max(1, Math.round(maxY + outer)),
@@ -805,10 +854,10 @@ function computeLayout() {
 // The row follows the library rather than the order the pictures happened to be
 // placed in, so reordering the image list and pressing a preset re-packs it in
 // that order.  Copies of one picture keep the order they were placed in, and
-// only the positions move: the drawing order of `state.items` is left alone, so
-// what overlaps what stays exactly as it was.
+// only the positions move: the drawing order is the library's (computeLayout),
+// so arranging never restacks anything.
 function itemsInLibraryOrder() {
-  const place = new Map(state.sources.map((source, index) => [source.id, index]));
+  const place = libraryOrder();
   return [...state.items].sort((a, b) =>
     (place.get(a.sourceId) ?? Infinity) - (place.get(b.sourceId) ?? Infinity));
 }
@@ -1837,13 +1886,26 @@ function updateExportState(layout) {
 //  Filmstrip
 // ---------------------------------------------------------------------------
 
+// Bringing a picture forward or sending it back is the same act as dragging its
+// row to the top or the bottom of the list, because the list is the hierarchy.
+// Moving the source means the list on screen says exactly what happened.
+function moveSourceToEdge(sourceId, edge) {
+  const index = state.sources.findIndex((source) => source.id === sourceId);
+  if (index < 0) return;
+  if ((edge === 'front' && index === 0)
+    || (edge === 'back' && index === state.sources.length - 1)) return;
+
+  const [source] = state.sources.splice(index, 1);
+  if (edge === 'front') state.sources.unshift(source);
+  else state.sources.push(source);
+
+  renderStrip();
+  updateSelectionPanel();
+  scheduleRender();
+}
+
 function renderStrip() {
   els.strip.replaceChildren();
-
-  const used = new Map();
-  for (const item of state.items) {
-    used.set(item.sourceId, (used.get(item.sourceId) || 0) + 1);
-  }
 
   state.sources.forEach((source, index) => {
     const item = document.createElement('li');
@@ -1851,13 +1913,18 @@ function renderStrip() {
     item.tabIndex = 0;
     item.dataset.id = String(source.id);
     item.title = `${source.name}\n${formatNumber(source.width)} × ${formatNumber(source.height)} px\n` +
-      'Click to add · drag onto the canvas · drag up or down to reorder';
+      'Click to place or select · drag onto the canvas to put it there · drag up or down to restack';
 
-    const count = used.get(source.id) || 0;
+    // A copy of another picture says so, because the list is the hierarchy and
+    // the two rows can sit at different depths.
+    const copy = source.copyOf
+      ? '<span class="thumb-copy" title="A copy of another picture in the list">copy</span>'
+      : '';
+
     item.innerHTML =
       `<span class="thumb-index">${index + 1}</span>` +
+      copy +
       `<img class="thumb-image" src="${source.url}" alt="" draggable="false">` +
-      (count > 1 ? `<span class="thumb-count" title="${count} on the canvas">×${count}</span>` : '') +
       `<span class="thumb-meta">` +
         `<span class="thumb-name">${escapeHtml(source.name)}</span>` +
         `<span class="thumb-size">${source.width} × ${source.height}</span>` +
@@ -1891,7 +1958,23 @@ function renderStrip() {
   });
 }
 
+// One row is one picture.  A click on a row that is already on the canvas
+// chooses it rather than adding a second copy - Duplicate is what adds one - and
+// a row dragged out to the stage puts its picture where the pointer let go.
 function addSourceHere(source, point = null) {
+  const placed = state.items.find((item) => item.sourceId === source.id);
+
+  if (placed) {
+    if (point) {
+      placed.x = Math.round(point.x - placed.w / 2);
+      placed.y = Math.round(point.y - placed.h / 2);
+      snapItem(placed);
+      clampItem(placed);
+    }
+    selectItem(placed.id);
+    return;
+  }
+
   placeSources([source], point);
   renderStrip();
   updateSelectionPanel();
@@ -2080,7 +2163,9 @@ function closeImageMenu() {
 
 function showImageMenu(id, x, y) {
   closeImageMenu();
-  if (!state.items.some((item) => item.id === id)) return;
+  const target = state.items.find((candidate) => candidate.id === id);
+  if (!target) return;
+  const sourceId = target.sourceId;
 
   const menu = document.createElement('div');
   menu.className = 'image-menu';
@@ -2108,13 +2193,22 @@ function showImageMenu(id, x, y) {
     scheduleRender();
   };
 
-  add('Rotate 90°', () => edit((item) => { item.rot = (item.rot + 90) % 360; }));
-  add('Flip horizontal', () => edit((item) => { item.flipH = !item.flipH; }));
-  add('Flip vertical', () => edit((item) => { item.flipV = !item.flipV; }));
+  // The list is the hierarchy, so bringing a picture forward moves its row to
+  // the top and sending it back moves it to the bottom.
+  add('Bring to front', () => moveSourceToEdge(sourceId, 'front'));
+  add('Send to back', () => moveSourceToEdge(sourceId, 'back'));
 
   const separator = document.createElement('div');
   separator.className = 'menu-sep';
   menu.append(separator);
+
+  add('Rotate 90°', () => edit((item) => { item.rot = (item.rot + 90) % 360; }));
+  add('Flip horizontal', () => edit((item) => { item.flipH = !item.flipH; }));
+  add('Flip vertical', () => edit((item) => { item.flipV = !item.flipV; }));
+
+  const separator2 = document.createElement('div');
+  separator2.className = 'menu-sep';
+  menu.append(separator2);
 
   add('Remove', () => removeItem(id), 'danger');
 
@@ -2857,6 +2951,18 @@ function bindControls() {
   });
 
   // Selected picture
+  // The list is the hierarchy: front is the top of the list and back the
+  // bottom, so these two are the same act as dragging the row there.
+  els.frontButton.addEventListener('click', () => {
+    const item = selectedItem();
+    if (item) moveSourceToEdge(item.sourceId, 'front');
+  });
+
+  els.backButton.addEventListener('click', () => {
+    const item = selectedItem();
+    if (item) moveSourceToEdge(item.sourceId, 'back');
+  });
+
   els.rotateButton.addEventListener('click', () => {
     const item = selectedItem();
     if (!item) return;

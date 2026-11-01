@@ -390,20 +390,21 @@ input[type="checkbox"] {
 .strip.reordering { user-select: none; }
 .thumb:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-/* How many copies of this picture are on the canvas. */
-.thumb-count {
+/* A copy of another picture in the list.  The list is the hierarchy, so a copy
+   is a row of its own rather than a count on one row. */
+.thumb-copy {
   position: absolute;
-  left: 21px;
-  top: 7px;
-  min-width: 16px;
-  padding: 0 4px;
+  left: 23px;
+  top: 6px;
+  padding: 0 5px;
   border-radius: 999px;
   background: var(--accent);
   color: #fff;
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 9px;
   line-height: 15px;
-  text-align: center;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   pointer-events: none;
 }
 
@@ -887,7 +888,7 @@ kbd {
 .selected-name { font-size: 11.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .selected-size { font-family: var(--mono); font-size: 10px; color: var(--text-faint); }
 
-/* Four actions, two by two, wide enough to hit without aiming: there is no
+/* Six actions, two by two, wide enough to hit without aiming: there is no
    frame or fill control above them any more, so they can take the room. */
 .button-grid {
   display: grid;

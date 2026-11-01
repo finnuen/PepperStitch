@@ -24,11 +24,15 @@ editor.
 ## What it does
 
 - **A library and a canvas.** Every picture you open joins the library. Click
-  one to add it beside the last, or drag it onto the canvas to place it where
-  you drop it. A picture can be placed any number of times, so duplicating is
-  just dragging it again. Drag a thumbnail up or down and the list reorders
-  itself, which changes nothing on the canvas. The × on a thumbnail drops that
-  picture from the library, along with every copy of it on the canvas.
+  one to place it beside the last, or drag it onto the canvas to put it where
+  you drop it; click it again and it is chosen rather than added a second time.
+  **The list is the stacking order**: the first picture in it is the one in
+  front, so dragging a thumbnail up or down restacks the canvas as it goes.
+  **Duplicate** gives the copy a row of its own, marked *copy*, so the two can
+  sit at different depths — and **Bring to front** and **Send to back**, on the
+  right-click menu and under the selected picture, do the same thing as dragging
+  that row to the top or the bottom of the list. The × on a thumbnail drops the
+  picture from the library and takes it off the canvas with it.
 - **Arrange, then free.** The two presets are actions: Horizontal and Vertical
   pack the pictures once, in the order they stand in the library — so putting the
   list in a different order and pressing a preset re-packs the row or column to

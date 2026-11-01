@@ -107,11 +107,12 @@ it. Two collections hold the state:
 
 - `state.sources` is the library: a decoded preview bitmap, the original blob,
   a name and a `blob:` URL. Its order is the library's order — the numbers on
-  the thumbnails, and nothing on the canvas — which a drag up or down in the
-  rail changes. A source leaves the library through its × button
-  (`removeSource`) or **Clear**, and is set aside rather than released, because
-  a step in the history may still hold it (see below).
-- `state.items` is the canvas, in drawing order. An item is
+  the thumbnails — which a drag up or down in the rail changes, and it is also
+  the stacking order of the canvas: the first entry is drawn last, in front. A
+  source leaves the library through its × button (`removeSource`) or **Clear**,
+  and is set aside rather than released, because a step in the history may still
+  hold it (see below).
+- `state.items` is the canvas, in the order things were placed. An item is
   `{ id, sourceId, x, y, w, h, rot, flipH, flipV, scale, crop }`,
   and `x, y` is the picture's own top-left — the border ring is drawn outward at
   `x - border`, so the ring never changes the picture's own size or position.
@@ -121,9 +122,20 @@ it. Two collections hold the state:
   is no frame and no fill: a cell always has the picture's own shape, so the
   picture fills it exactly.
 
+One row is one picture: a source is on the canvas at most once, and a duplicate
+is a source of its own (`copyOf` names the row it came from) rather than a second
+item sharing one. That is what lets the list be the hierarchy — two copies can
+sit at different depths — and it is why `duplicateItem()` decodes the blob again
+instead of sharing the bitmap: each row owns what it closes.
+
 `computeLayout()` turns the items into cells: `x = item.x - border + outer`,
 `w = item.w + border * 2`, and the canvas is the bounding box of the cells plus
-`outer` on the right and bottom. Cells overlap when pictures stand closer than
+`outer` on the right and bottom. The cells are then sorted by `libraryOrder()`,
+descending, so the first row of the list is the last cell drawn and therefore the
+picture in front. Only the cells are sorted: `state.items` keeps the placement
+order, so reordering the list restacks the canvas without moving a picture, and
+the hit test, the preview and the export all read the same array. Cells overlap
+when pictures stand closer than
 `border`, and that is the normal case: two neighbours are `border + spacing`
 apart, not `2 * border + spacing`, so their rings land on the same band. One
 border between them instead of a double one, and no ring reaching over either
@@ -132,9 +144,7 @@ moves items, and a preset is an action. Horizontal and Vertical stack the
 pictures from the border with that distance between them, in the library's order
 rather than the order they were placed in: `itemsInLibraryOrder()` sorts a copy
 of the items by each source's index, so reordering the image list and pressing a
-preset re-packs the row to match. Copies of one picture keep the order they were
-placed in (the sort is stable), and `state.items` itself is left alone, so what
-overlaps what does not change with the list. Spacing and the border
+preset re-packs the row to match. Spacing and the border
 never re-arrange a composition someone placed by hand — a new gap applies to the
 next placement and to snapping, and a thicker border grows the canvas around the
 pictures. The one exception is a slide of the whole composition by the border's
@@ -316,10 +326,10 @@ from.
 
 | Where | Gesture | Result |
 | --- | --- | --- |
-| library | click | place the source beside the last item |
-| library | drag up or down | reorder the list; the canvas is untouched |
-| library | drag out to the stage | carry a ghost; drop on the stage to place at the pointer |
-| library | × | remove the source and every item drawn from it |
+| library | click | place the source beside the last item, or choose it if it is already on the canvas |
+| library | drag up or down | reorder the list, and the canvas restacks to match |
+| library | drag out to the stage | carry a ghost; drop on the stage to place the picture there, or to move it if it is already placed |
+| library | × | remove the source and its picture from the canvas |
 | library | right-click | nothing |
 | canvas | click / drag | select and move; snaps to neighbours |
 | canvas | drag with <kbd>Shift</kbd> | move without snapping |
@@ -329,7 +339,7 @@ from.
 | canvas | click a gap between pictures | nothing is selected |
 | keyboard | <kbd>Esc</kbd> | nothing is selected, when no crop frame is up |
 | canvas | wheel | resize the picture under the pointer, about its centre |
-| canvas | right-click | Rotate 90°, Flip horizontal, Flip vertical, Remove |
+| canvas | right-click | Bring to front, Send to back, Rotate 90°, Flip horizontal, Flip vertical, Remove |
 | preset | align buttons | line the pictures up, one axis at a time: the row's tops for Horizontal, the column's lefts for Vertical |
 | header | Undo / Redo | step back or forward through the composition |
 | keyboard | arrow | nudge the selected picture 1 px; <kbd>Shift</kbd> makes it 10 px |
@@ -347,6 +357,13 @@ the stage carries the picture there. A reorder lifts the thumbnail
 (`.reordering`) and shuffles the others around it as the pointer passes their
 middles (`moveInStrip`), and the order is read back off the list on release
 (`finishReorder`), so the DOM is the draft and `state.sources` is written once.
+That order is the stacking order too, so a reorder restacks the canvas as it
+happens. A click on a row that is already placed chooses it (`addSourceHere`),
+and a carry that ends on the stage moves that picture rather than adding a second
+one: one row is one picture, and **Duplicate** is what makes another.
+**Bring to front** and **Send to back** — the first two buttons under the selected
+picture, and the top two entries of the right-click menu — are `moveSourceToEdge()`,
+the same act as dragging the row to the top or bottom of the list.
 Leaving the rail mid-reorder therefore just redraws the list as it was and
 becomes a carry — the sideways drag is what a carry looks like from the start,
 and it is the one gesture that must not be mistaken for a reorder. The canvas
