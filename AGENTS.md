@@ -331,7 +331,7 @@ from.
 | library | drag out to the stage | carry a ghost; drop on the stage to place the picture there, or to move it if it is already placed |
 | library | × | remove the source and its picture from the canvas |
 | library | right-click | nothing |
-| canvas | click / drag | select and move; snaps to neighbours |
+| canvas | click / drag | select and move; snaps to neighbours, and the chosen picture's row in the list lights up |
 | canvas | drag with <kbd>Shift</kbd> | move without snapping |
 | canvas | drag an edge or corner | size the selected picture at its own ratio; snaps to the others |
 | canvas | drag an edge or corner with <kbd>Shift</kbd> | size without snapping |
@@ -364,6 +364,12 @@ one: one row is one picture, and **Duplicate** is what makes another.
 **Bring to front** and **Send to back** — the first two buttons under the selected
 picture, and the top two entries of the right-click menu — are `moveSourceToEdge()`,
 the same act as dragging the row to the top or bottom of the list.
+`updateStripSelection()` lights the row of the chosen picture (`.thumb.selected`,
+the accent), so the list, the panel and the veil on the canvas name the same
+picture. It is called from `updateSelectionPanel()` and from the end of
+`renderStrip()`, and only scrolls the rail to the row when the selection has
+actually changed: a render, a reorder or a preset must not move the list under
+the pointer.
 Leaving the rail mid-reorder therefore just redraws the list as it was and
 becomes a carry — the sideways drag is what a carry looks like from the start,
 and it is the one gesture that must not be mistaken for a reorder. The canvas

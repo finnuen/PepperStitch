@@ -378,6 +378,12 @@ input[type="checkbox"] {
 .thumb:hover { background: var(--surface-3); }
 .thumb:active { cursor: grabbing; }
 .thumb.carrying { opacity: 0.45; }
+/* The picture chosen on the canvas, lit the way it is there: the row that owns
+   it carries the accent, so the list and the panel name the same picture. */
+.thumb.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
 /* A thumbnail being dragged up or down the list: lifted off the rail, with the
    others making room for it. */
 .thumb.reordering {

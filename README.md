@@ -31,8 +31,10 @@ editor.
   **Duplicate** gives the copy a row of its own, marked *copy*, so the two can
   sit at different depths — and **Bring to front** and **Send to back**, on the
   right-click menu and under the selected picture, do the same thing as dragging
-  that row to the top or the bottom of the list. The × on a thumbnail drops the
-  picture from the library and takes it off the canvas with it.
+  that row to the top or the bottom of the list. The picture chosen on the canvas
+  lights its row in the list, so the two always name the same one. The × on a
+  thumbnail drops the picture from the library and takes it off the canvas with
+  it.
 - **Arrange, then free.** The two presets are actions: Horizontal and Vertical
   pack the pictures once, in the order they stand in the library — so putting the
   list in a different order and pressing a preset re-packs the row or column to

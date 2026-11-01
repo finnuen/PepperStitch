@@ -1956,6 +1956,34 @@ function renderStrip() {
 
     els.strip.append(item);
   });
+
+  // The rows are new, so the highlight has to be put back on them.
+  updateStripSelection();
+}
+
+// The picture chosen on the canvas lights its row in the list, so the rail and
+// the panel name the same picture.  The rail scrolls to it only when the choice
+// has actually changed: a render, a reorder or a preset must not move the list
+// under the pointer.
+let lastStripSelection = null;
+
+function updateStripSelection({ reveal = false } = {}) {
+  const item = selectedItem();
+  const sourceId = item ? item.sourceId : null;
+
+  for (const row of els.strip.querySelectorAll('li.thumb')) {
+    const selected = sourceId !== null && Number(row.dataset.id) === sourceId;
+    row.classList.toggle('selected', selected);
+    if (selected) row.setAttribute('aria-current', 'true');
+    else row.removeAttribute('aria-current');
+  }
+
+  if (!reveal || sourceId === lastStripSelection) return;
+  if (sourceId !== null) {
+    const row = els.strip.querySelector(`li.thumb[data-id="${sourceId}"]`);
+    if (row) row.scrollIntoView({ block: 'nearest' });
+  }
+  lastStripSelection = sourceId;
 }
 
 // One row is one picture.  A click on a row that is already on the canvas
@@ -2249,6 +2277,9 @@ function updateSelectionPanel() {
   // before the early return below.
   els.cropBar.hidden = !cropping;
   els.cropButton.disabled = cropping;
+
+  // Before the early return, so letting go of the selection clears the list too.
+  updateStripSelection({ reveal: true });
 
   els.selectionGroup.hidden = !item || !source;
   if (!item || !source) return;
