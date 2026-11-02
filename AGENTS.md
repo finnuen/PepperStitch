@@ -379,6 +379,19 @@ frame is up the canvas pointerdown goes to `cropPointerDown` instead, the contex
 menu is swallowed, and the canvas keys stand down — the frame is modal until
 Enter or Escape.
 
+## The rail's width
+
+A row is a thumbnail and a name, and a long file name has to fit somewhere, so
+the rail's right edge is a splitter (`#railResize`, a `separator` in the tab
+order). A drag writes `--rail-width` on the document, which the `.body` grid
+uses, and `state.railWidth`, which is saved with the settings but kept out of
+`DOCUMENT_KEYS`: how wide the list is drawn is not part of the composition, so
+undo moves pictures and never the furniture. `applyRailWidth()` clamps to
+`RAIL_WIDTH_MIN` (150) and to a maximum that leaves the stage `RAIL_STAGE_MIN`
+(360) px, and clamps again when the window shrinks. The arrow keys step the
+width by 16 px (32 with <kbd>Shift</kbd>), Home and End go to the two ends, and
+double-clicking the edge resets it to 194.
+
 ## The name and the icon
 
 `AppDisplayName()` in `main.cpp` is the versioned name (`PepperStitch_v<version>`):

@@ -34,7 +34,8 @@ editor.
   that row to the top or the bottom of the list. The picture chosen on the canvas
   lights its row in the list, so the two always name the same one. The × on a
   thumbnail drops the picture from the library and takes it off the canvas with
-  it.
+  it. A long file name has room to be read: drag the list's right edge to make
+  it wider, and double-click that edge to put it back.
 - **Arrange, then free.** The two presets are actions: Horizontal and Vertical
   pack the pictures once, in the order they stand in the library — so putting the
   list in a different order and pressing a preset re-packs the row or column to

@@ -56,6 +56,7 @@ const DEFAULTS = {
   format: 'png',
   quality: 0.92,
   theme: 'dark',
+  railWidth: 194,
 };
 
 // What a switch seeds when it is turned on and its value is still zero, so
@@ -109,6 +110,7 @@ const els = {
 
   strip: $('strip'),
   imageCount: $('imageCount'),
+  railResize: $('railResize'),
 
   stage: $('stage'),
   stageScroll: $('stageScroll'),
@@ -1986,6 +1988,98 @@ function updateStripSelection({ reveal = false } = {}) {
   lastStripSelection = sourceId;
 }
 
+// ---------------------------------------------------------------------------
+//  The width of the image list
+//
+//  A row is a thumbnail and a name, and a long file name has to fit somewhere,
+//  so the rail's right edge is a splitter.  The width is a setting rather than
+//  part of the composition - it is not in DOCUMENT_KEYS - so undo moves
+//  pictures, not the furniture.  It is kept in the settings, so the list is the
+//  width it was left at next time.
+// ---------------------------------------------------------------------------
+
+const RAIL_WIDTH_DEFAULT = 194;
+const RAIL_WIDTH_MIN = 150;
+const RAIL_WIDTH_MAX = 460;
+const RAIL_STAGE_MIN = 360;   // what the stage keeps, whatever the list takes
+
+function railWidthMax() {
+  const room = window.innerWidth - 308 - RAIL_STAGE_MIN;
+  return Math.max(RAIL_WIDTH_MIN, Math.min(RAIL_WIDTH_MAX, room));
+}
+
+function applyRailWidth(width, { persist = false } = {}) {
+  const next = Math.round(clamp(width, RAIL_WIDTH_MIN, railWidthMax()));
+  state.railWidth = next;
+  document.documentElement.style.setProperty('--rail-width', `${next}px`);
+
+  els.railResize.setAttribute('aria-valuenow', String(next));
+  els.railResize.setAttribute('aria-valuemax', String(Math.round(railWidthMax())));
+
+  if (persist) saveSettingsSoon();
+  return next;
+}
+
+let railDrag = null;
+
+function startRailResize(event) {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  railDrag = { pointerId: event.pointerId, startX: event.clientX, startWidth: state.railWidth };
+  els.railResize.classList.add('dragging');
+  document.body.classList.add('rail-resizing');
+  window.addEventListener('pointermove', moveRailResize);
+  window.addEventListener('pointerup', endRailResize, { once: true });
+}
+
+function moveRailResize(event) {
+  if (!railDrag || event.pointerId !== railDrag.pointerId) return;
+  applyRailWidth(railDrag.startWidth + (event.clientX - railDrag.startX));
+  scheduleRender();
+}
+
+function endRailResize() {
+  if (!railDrag) return;
+  railDrag = null;
+  window.removeEventListener('pointermove', moveRailResize);
+  els.railResize.classList.remove('dragging');
+  document.body.classList.remove('rail-resizing');
+  saveSettingsSoon();
+  scheduleRender();
+}
+
+// The splitter is a separator, so it is in the tab order and answers to the
+// arrow keys: left and right by a step, Home and End for the two ends.
+function onRailResizeKey(event) {
+  const step = event.shiftKey ? 32 : 16;
+  let width = state.railWidth;
+
+  if (event.key === 'ArrowLeft') width -= step;
+  else if (event.key === 'ArrowRight') width += step;
+  else if (event.key === 'Home') width = RAIL_WIDTH_MIN;
+  else if (event.key === 'End') width = railWidthMax();
+  else return;
+
+  event.preventDefault();
+  applyRailWidth(width, { persist: true });
+  scheduleRender();
+}
+
+function bindRailResize() {
+  els.railResize.addEventListener('pointerdown', startRailResize);
+  els.railResize.addEventListener('keydown', onRailResizeKey);
+
+  // Double-clicking the border puts the list back to its usual width.
+  els.railResize.addEventListener('dblclick', () => {
+    applyRailWidth(RAIL_WIDTH_DEFAULT, { persist: true });
+    scheduleRender();
+  });
+
+  // A window that has grown narrower may no longer have room for the list as
+  // wide as it was left.
+  window.addEventListener('resize', () => applyRailWidth(state.railWidth));
+}
+
 // One row is one picture.  A click on a row that is already on the canvas
 // chooses it rather than adding a second copy - Duplicate is what adds one - and
 // a row dragged out to the stage puts its picture where the pointer let go.
@@ -3377,8 +3471,10 @@ function init() {
   loadSettings();
   setVersion();
   applyTheme(state.theme);
+  applyRailWidth(state.railWidth);
   bindControls();
   bindCanvas();
+  bindRailResize();
   for (const key of Object.keys(DEFAULTS)) syncControls(key);
   updateDependentLabels();
   updateFieldAvailability();

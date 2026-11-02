@@ -69,7 +69,7 @@
   <main class="body">
 
     <!-- Filmstrip ----------------------------------------------------- -->
-    <aside class="rail">
+    <aside class="rail" id="rail">
       <div class="rail-head">
         <span>Images</span>
         <span class="badge" id="imageCount">0</span>
@@ -80,6 +80,9 @@
         Add images
       </button>
       <p class="rail-hint">Click to place or select<br>Drag onto the canvas<br>Drag up or down to restack</p>
+      <div class="rail-resize" id="railResize" role="separator" aria-orientation="vertical"
+           aria-label="Resize the image list" aria-valuemin="150" aria-valuemax="460" aria-valuenow="194"
+           tabindex="0" title="Drag to resize the list · double-click to reset"></div>
     </aside>
 
     <!-- Stage --------------------------------------------------------- -->
