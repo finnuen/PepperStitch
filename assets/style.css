@@ -914,7 +914,7 @@ kbd {
   cursor: pointer;
 }
 
-.selected {
+.selected-card {
   display: flex;
   align-items: center;
   gap: 9px;
@@ -923,7 +923,7 @@ kbd {
   background: var(--surface-2);
   border: 1px solid var(--line-soft);
 }
-.selected img {
+.selected-card img {
   width: 46px;
   height: 38px;
   object-fit: contain;

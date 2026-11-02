@@ -35,7 +35,9 @@ editor.
   lights its row in the list, so the two always name the same one. The × on a
   thumbnail drops the picture from the library and takes it off the canvas with
   it. A long file name has room to be read: drag the list's right edge to make
-  it wider, and double-click that edge to put it back.
+  it wider, and double-click that edge to put it back. A name that still does
+  not fit keeps its beginning and its end — `holiday-2026…-final.png` — so the
+  extension stays visible.
 - **Arrange, then free.** The two presets are actions: Horizontal and Vertical
   pack the pictures once, in the order they stand in the library — so putting the
   list in a different order and pressing a preset re-packs the row or column to

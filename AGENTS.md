@@ -392,6 +392,14 @@ undo moves pictures and never the furniture. `applyRailWidth()` clamps to
 width by 16 px (32 with <kbd>Shift</kbd>), Home and End go to the two ends, and
 double-clicking the edge resets it to 194.
 
+A name that still does not fit is cut in the middle rather than at the end:
+`middleEllipsis()` measures with a canvas against the row's own width and keeps
+the beginning, the extension and the end (`holiday-2026…-final.png`), because
+the extension is the part that says what kind of file it is. `fitNames()` runs
+at the end of `renderStrip()` and from `applyRailWidth()`, so a wider list shows
+more of a name and a narrower one less; the panel's name is fitted the same way.
+The full name stays in the row's `title`, and in the panel's.
+
 ## The name and the icon
 
 `AppDisplayName()` in `main.cpp` is the versioned name (`PepperStitch_v<version>`):

@@ -1928,7 +1928,7 @@ function renderStrip() {
       copy +
       `<img class="thumb-image" src="${source.url}" alt="" draggable="false">` +
       `<span class="thumb-meta">` +
-        `<span class="thumb-name">${escapeHtml(source.name)}</span>` +
+        `<span class="thumb-name" data-name="${escapeHtml(source.name)}">${escapeHtml(source.name)}</span>` +
         `<span class="thumb-size">${source.width} × ${source.height}</span>` +
       `</span>` +
       `<button class="thumb-remove" type="button" title="Remove from the list"` +
@@ -1959,8 +1959,52 @@ function renderStrip() {
     els.strip.append(item);
   });
 
-  // The rows are new, so the highlight has to be put back on them.
+  // The rows are new, so the names have to be fitted to them again and the
+  // highlight put back on them.
+  fitNames();
   updateStripSelection();
+}
+
+// A name too long for its row keeps its beginning and its end and loses the
+// middle: `holiday-2026…-final.png` still says which picture it is and what kind
+// of file it is, where cutting the end would hide the extension.  The width is
+// the row's, so the same name is re-fitted when the rail is dragged or the
+// window changes size.
+const nameMeasure = document.createElement('canvas').getContext('2d');
+
+function middleEllipsis(text, width, style) {
+  nameMeasure.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+  if (nameMeasure.measureText(text).width <= width) return text;
+
+  // The extension stays whole: it is the part that says what the file is.
+  const dot = text.lastIndexOf('.');
+  const keepsExtension = dot > 0 && text.length - dot <= 10;
+  const head = keepsExtension ? text.slice(0, dot) : text;
+  const tail = keepsExtension ? text.slice(dot) : '';
+
+  for (let keep = head.length - 1; keep > 0; keep -= 1) {
+    const left = Math.ceil(keep / 2);
+    const right = keep - left;
+    const candidate = head.slice(0, left) + '…' + head.slice(head.length - right) + tail;
+    if (nameMeasure.measureText(candidate).width <= width) return candidate;
+  }
+
+  // Too narrow even for the extension: one mark is all that fits.
+  const shortest = '…' + tail;
+  return nameMeasure.measureText(shortest).width <= width ? shortest : '…';
+}
+
+function fitName(element) {
+  const full = element.dataset.name;
+  const width = element.clientWidth;
+  if (!full || !width) return;
+  const fitted = middleEllipsis(full, width, getComputedStyle(element));
+  if (element.textContent !== fitted) element.textContent = fitted;
+}
+
+function fitNames() {
+  for (const element of els.strip.querySelectorAll('.thumb-name')) fitName(element);
+  fitName(els.selectedName);
 }
 
 // The picture chosen on the canvas lights its row in the list, so the rail and
@@ -2015,6 +2059,10 @@ function applyRailWidth(width, { persist = false } = {}) {
 
   els.railResize.setAttribute('aria-valuenow', String(next));
   els.railResize.setAttribute('aria-valuemax', String(Math.round(railWidthMax())));
+
+  // The names are as wide as the row they sit in, so a wider list may show
+  // more of them and a narrower one less.
+  fitNames();
 
   if (persist) saveSettingsSoon();
   return next;
@@ -2379,9 +2427,11 @@ function updateSelectionPanel() {
   if (!item || !source) return;
 
   els.selectedThumb.src = source.url;
+  els.selectedName.dataset.name = source.name;
   els.selectedName.textContent = source.name;
   els.selectedName.title = `${source.name}\n${formatNumber(source.width)} × ${formatNumber(source.height)} px`;
   els.selectedSize.textContent = `${formatNumber(item.w)} × ${formatNumber(item.h)} px`;
+  fitName(els.selectedName);
 }
 
 // ---------------------------------------------------------------------------
