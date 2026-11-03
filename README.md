@@ -88,10 +88,12 @@ editor.
   no alpha, is flattened onto the backdrop colour instead.
 - **Frames and spacing.** An outer frame colour, a gap between pictures, and a
   per-picture border with its own colour and corner radius — each with a switch
-  to turn it off without losing the value. Changing a gap or a border never
-  moves the pictures already placed: the new gap applies to the next picture you
-  place and to snapping, and a thicker border grows the canvas around them,
-  sliding the whole composition inward with it so no border is cut off. Two
+  to turn it off without losing the value. Changing a gap never moves the
+  pictures already placed: the new gap applies to the next picture you place and
+  to snapping. A thicker border does move them, because the ring needs room: the
+  composition slides inward by the same difference so no border is cut off, and
+  every gap between pictures opens or closes by it too, so a row packed by a
+  preset comes out exactly as if you had pressed the preset again. Two
   neighbours share one border band instead of stacking two, so with no gap the
   border between them is as thick as the border around the outside; a gap widens
   that band. The outer frame never moves anything.

@@ -144,13 +144,15 @@ moves items, and a preset is an action. Horizontal and Vertical stack the
 pictures from the border with that distance between them, in the library's order
 rather than the order they were placed in: `itemsInLibraryOrder()` sorts a copy
 of the items by each source's index, so reordering the image list and pressing a
-preset re-packs the row to match. Spacing and the border
-never re-arrange a composition someone placed by hand — a new gap applies to the
-next placement and to snapping, and a thicker border grows the canvas around the
-pictures. The one exception is a slide of the whole composition by the border's
-own difference, from `slideForBorder()`: the ring's outer edge stays where it
-was while the pictures move in or out with their thickness, so relative
-placement survives and no border is cut off by the canvas edge. `resizeItems()`
+preset re-packs the row to match. Spacing never re-arranges a composition someone
+placed by hand — a new gap applies to the next placement and to snapping. The
+border does move the pictures, because a ring only shows where no neighbour
+stands on it: `spreadForBorder()` slides the composition by the border's own
+difference, so the ring's outer edge stays at the canvas edge, and carries each
+picture one further difference for every picture standing before it on that axis,
+so every gap opens or closes by exactly the change in thickness. A row packed by
+a preset comes out identical to pressing the preset again, a collage keeps its
+shape and only spreads, and no border is cut off by the canvas edge. `resizeItems()`
 re-derives `w` and `h`:
 
 - **Even size on** shares one edge across the canvas: the height for a row, the

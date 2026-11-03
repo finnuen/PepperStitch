@@ -783,11 +783,34 @@ function clampItem(item) {
 // a change in thickness slides the whole composition by the same difference
 // rather than re-packing it: relative placement survives, the ring's outer edge
 // stays where it was, and no border is ever cut off by the canvas edge.
-function slideForBorder(delta) {
+//
+// A ring also only shows where no neighbour stands on it, and two pictures have
+// to be exactly `border` apart for their rings to share the band between them.
+// So each picture is carried one further difference for every picture that
+// stands before it on that axis, which opens (or closes) every gap by the
+// change in thickness.  A row packed by a preset comes out identical to
+// pressing the preset again; a collage placed by hand keeps its shape and only
+// spreads, so nobody has to drag a picture or press a preset to see the border.
+function spreadForBorder(delta) {
   if (!delta || !state.items.length) return;
-  for (const item of state.items) {
-    item.x += delta;
-    item.y += delta;
+
+  for (const key of ['x', 'y']) {
+    // Pictures sharing a coordinate move together: a column shares one x, and
+    // it is the stack of places that is spread, not the list of pictures.
+    const places = [...new Set(state.items.map((item) => item[key]))].sort((a, b) => a - b);
+    let previous = -Infinity;
+
+    places.forEach((place, rank) => {
+      // Every gap changes by exactly the difference, so a ring thicker than the
+      // gap leaves the pictures overlapping; the clamp only stops one passing
+      // the place it stood behind, so the order along the axis never flips
+      // under the slider.
+      const next = Math.max(place + delta * (1 + rank), previous);
+      for (const item of state.items) {
+        if (item[key] === place) item[key] = next;
+      }
+      previous = next;
+    });
   }
 }
 
@@ -2940,7 +2963,7 @@ function setValue(key, value, { silent = false } = {}) {
   if (key === 'preset' && !['horizontal', 'vertical'].includes(value)) return;
 
   // The ring decides where the composition sits on the canvas, so a change in
-  // thickness is applied as a slide of the difference; remember the old size.
+  // thickness is applied as a spread of the difference; remember the old size.
   const previousBorder = borderPx();
 
   state[key] = value;
@@ -2961,8 +2984,8 @@ function setValue(key, value, { silent = false } = {}) {
 
   // A preset is an action: it lays the pictures out once.  Nothing else moves
   // them, because a composition placed by hand must survive a slider.  Even
-  // size re-derives every picture's size, and a border change slides the
-  // composition by its own difference so the rings stay inside the canvas.
+  // size re-derives every picture's size, and a border change opens every gap by
+  // its own difference, so the rings have room and stay inside the canvas.
   if (!silent && key === 'preset') {
     arrange(state.preset);
   } else if (!silent && key === 'evenSize') {
@@ -2973,7 +2996,7 @@ function setValue(key, value, { silent = false } = {}) {
     }
     resizeItems();
   } else if (!silent && (key === 'border' || key === 'borderOn')) {
-    slideForBorder(borderPx() - previousBorder);
+    spreadForBorder(borderPx() - previousBorder);
   }
 }
 
