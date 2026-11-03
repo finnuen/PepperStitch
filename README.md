@@ -42,10 +42,12 @@ editor.
   pack the pictures once, in the order they stand in the library — so putting the
   list in a different order and pressing a preset re-packs the row or column to
   match. After that every picture is free — drag it anywhere, or nudge it with
-  the arrow keys, a pixel at a time (ten with <kbd>Shift</kbd>). A drag snaps to
-  a neighbour's edges and centres, so pictures meet at the spacing you asked
-  for; hold <kbd>Shift</kbd> while dragging and it goes exactly where the
-  pointer is instead.
+  the arrow keys, a pixel at a time (ten with <kbd>Shift</kbd>). Nothing walls the
+  canvas in: drag a picture up or to the left and the canvas grows with it, and
+  the export is always exactly the pictures' own bounds, never a blank margin. A
+  drag snaps to a neighbour's edges and centres, so pictures meet at the spacing
+  you asked for; hold <kbd>Shift</kbd> while dragging and it goes exactly where
+  the pointer is instead.
 - **Line the pictures up.** Six buttons under the preset tidy the whole
   composition along one axis, and the preset picks the three that apply: a row
   is lined up by its tops, middles or bottoms, a column by its lefts, centres or
@@ -90,13 +92,14 @@ editor.
   per-picture border with its own colour and corner radius — each with a switch
   to turn it off without losing the value. Changing a gap never moves the
   pictures already placed: the new gap applies to the next picture you place and
-  to snapping. A thicker border does move them, because the ring needs room: the
-  composition slides inward by the same difference so no border is cut off, and
-  every gap between pictures opens or closes by it too, so a row packed by a
-  preset comes out exactly as if you had pressed the preset again. Two
-  neighbours share one border band instead of stacking two, so with no gap the
-  border between them is as thick as the border around the outside; a gap widens
-  that band. The outer frame never moves anything.
+  to snapping. A thicker border does move them, because the ring needs room:
+  every gap between pictures opens or closes by the same difference, so a row
+  packed by a preset comes out exactly as if you had pressed the preset again.
+  Two neighbours share one border band instead of stacking two, so with no gap
+  the border between them is as thick as the border around the outside; a gap
+  widens that band. A border belongs to the picture it surrounds: where two
+  pictures overlap, the one in front covers the other's border rather than the
+  border sitting on top of it. The outer frame never moves anything.
 - **Right-click a picture on the canvas** to rotate it, flip it or remove it.
 - **Export at full resolution.** The preview is a downscaled stand-in; the
   exported file is built from the original pictures, one at a time.
@@ -205,7 +208,9 @@ canvases. The host never decodes an image.
 **The layout in one sentence:** the canvas is the bounding box of the placed
 pictures, each of which remembers its own position, size, rotation, scale and
 crop; a preset is a one-off arrangement that packs them into a row or a column,
-and Even size gives every picture the same height (or width) once.
+and Even size gives every picture the same height (or width) once. Nothing is
+anchored to an origin, so a picture may sit at a negative position: the box is
+re-measured from the pictures every time, which is what makes the export snug.
 
 Preview bitmaps are decoded at no more than 1800 px, which keeps memory flat
 while dragging sliders. Export decodes each original at full resolution, draws

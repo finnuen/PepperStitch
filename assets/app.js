@@ -86,6 +86,11 @@ let lastCssScale = 1;
 let renderQueued = false;
 let settingsTimer = 0;
 
+// While a gesture runs, the canvas is pinned where it was when the gesture
+// began: the box follows the pictures, so moving one past an edge would
+// otherwise shift the whole composition under the pointer.  See holdView().
+let viewHold = null;
+
 // ---------------------------------------------------------------------------
 //  DOM
 // ---------------------------------------------------------------------------
@@ -548,7 +553,6 @@ function placeSources(sources, point = null) {
         item.y = border;
       }
     }
-    clampItem(item);
     if (dropCursor) {
       dropCursor = { x: item.x + item.w + border + gap, y: item.y };
     }
@@ -660,7 +664,6 @@ async function duplicateItem(id) {
   const border = borderPx();
   item.x = original.x + original.w + border * 2 + spacingPx();
   item.y = original.y;
-  clampItem(item);
 
   state.selectedItemId = item.id;
   renderStrip();
@@ -767,30 +770,16 @@ function resizeItems() {
     const size = sizeFor(item, edge);
     item.w = Math.max(1, Math.round(size.w));
     item.h = Math.max(1, Math.round(size.h));
-    clampItem(item);
   }
 }
 
-// The border sits outside the picture, so the picture never moves when the
-// ring gets thicker; it only has to stay far enough in for the ring to fit.
-function clampItem(item) {
-  const border = borderPx();
-  item.x = Math.max(border, Math.round(item.x));
-  item.y = Math.max(border, Math.round(item.y));
-}
-
-// A border lives outside the picture, and the canvas edge outside the ring, so
-// a change in thickness slides the whole composition by the same difference
-// rather than re-packing it: relative placement survives, the ring's outer edge
-// stays where it was, and no border is ever cut off by the canvas edge.
-//
-// A ring also only shows where no neighbour stands on it, and two pictures have
-// to be exactly `border` apart for their rings to share the band between them.
-// So each picture is carried one further difference for every picture that
-// stands before it on that axis, which opens (or closes) every gap by the
-// change in thickness.  A row packed by a preset comes out identical to
-// pressing the preset again; a collage placed by hand keeps its shape and only
-// spreads, so nobody has to drag a picture or press a preset to see the border.
+// A border lives outside the picture, and a ring only shows where no neighbour
+// stands on it: two pictures have to be exactly `border` apart for their rings
+// to share the band between them.  So a change in thickness opens (or closes)
+// every gap by that difference rather than re-packing the composition: a row
+// packed by a preset comes out identical to pressing the preset again, a
+// collage placed by hand keeps its shape and only spreads, and nobody has to
+// drag a picture or press a preset to see the border.
 function spreadForBorder(delta) {
   if (!delta || !state.items.length) return;
 
@@ -826,8 +815,10 @@ function computeLayout() {
   const border = borderPx();
   const outer = outerPx();
   const cells = [];
-  let maxX = 0;
-  let maxY = 0;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
 
   for (const item of state.items) {
     const cell = {
@@ -846,9 +837,26 @@ function computeLayout() {
       flipV: item.flipV,
       crop: item.crop,
     };
+    minX = Math.min(minX, cell.x);
+    minY = Math.min(minY, cell.y);
     maxX = Math.max(maxX, cell.x + cell.w);
     maxY = Math.max(maxY, cell.y + cell.h);
     cells.push(cell);
+  }
+
+  // The canvas is the composition's own bounding box plus the outer frame: no
+  // origin is fixed, so a picture dragged up or left grows the canvas that way
+  // instead of hitting an invisible wall, and the export never carries a blank
+  // margin.  `left` and `top` are where the box sits in the unshifted cell
+  // space, which is what a pointer is measured against (layoutPoint) and where
+  // a crop lands (applyCrop).
+  const left = minX - outer;
+  const top = minY - outer;
+  for (const cell of cells) {
+    cell.x -= left;
+    cell.y -= top;
+    cell.cx -= left;
+    cell.cy -= top;
   }
 
   // The list is the hierarchy, and the first entry is in front, so the cells are
@@ -862,8 +870,10 @@ function computeLayout() {
     (place.get(b.item.sourceId) ?? Infinity) - (place.get(a.item.sourceId) ?? Infinity));
 
   return {
-    width: Math.max(1, Math.round(maxX + outer)),
-    height: Math.max(1, Math.round(maxY + outer)),
+    width: Math.max(1, Math.round(maxX + outer - left)),
+    height: Math.max(1, Math.round(maxY + outer - top)),
+    left,
+    top,
     cells,
     preset: state.preset,
     border,
@@ -961,7 +971,6 @@ function alignAll(axis, where) {
         : where === 'end' ? high - size
           : middle - size / 2,
     );
-    clampItem(item);
   }
 
   updateSelectionPanel();
@@ -1014,9 +1023,10 @@ function roundedRect(ctx, x, y, width, height, radius) {
   ctx.closePath();
 }
 
-// The ring around one picture.  Rings are painted for the whole canvas before
-// any picture, so a border a neighbour sits too close for ends up underneath
-// that neighbour instead of over it: the picture always wins.
+// The ring around one picture, painted just before the picture itself.  Each
+// picture is drawn in the list's order from the back, so a neighbour standing in
+// front covers the ring behind it: the border is part of its own picture's
+// layer, not a sheet of its own on top of everything.
 function paintRing(ctx, cell, border) {
   if (border <= 0) return;
   const radius = Math.max(0, Number(state.radius) || 0);
@@ -1437,11 +1447,10 @@ function applyCrop() {
     item.crop = { x, y, w, h };
     item.w = Math.max(1, Math.round(rect.w));
     item.h = Math.max(1, Math.round(rect.h));
-    item.x = Math.round(rect.x - layout.outer);
-    item.y = Math.round(rect.y - layout.outer);
+    item.x = Math.round(rect.x - layout.outer + layout.left);
+    item.y = Math.round(rect.y - layout.outer + layout.top);
     const natural = naturalSizeOf(item);
     item.scale = natural.width > 0 ? item.w / natural.width : 1;
-    clampItem(item);
   }
 
   cropEdit = null;
@@ -1805,6 +1814,9 @@ function render() {
   updateAlignButtons();
 
   if (!layout) {
+    // The last picture left while a gesture was running: the hold has nothing
+    // left to pin.
+    releaseView();
     updateStatus(null);
     updateExportState(null);
     return;
@@ -1833,25 +1845,37 @@ function render() {
   els.canvas.style.width = `${layout.width * cssScale}px`;
   els.canvas.style.height = `${layout.height * cssScale}px`;
 
+  // A gesture holds the canvas still.  The box is the composition's own bounds,
+  // so dragging a picture past an edge grows the canvas and re-centres it in
+  // the stage; without this counter-shift the picture would drift away from the
+  // pointer by half of that growth.  The transform is cleared before the sheet
+  // is measured, so the measurement is of the laid-out position, not of the
+  // correction already applied.
+  els.sheet.style.transform = '';
+  if (viewHold) {
+    const sheet = els.sheet.getBoundingClientRect();
+    const dx = viewHold.anchorX + layout.left * cssScale - sheet.left;
+    const dy = viewHold.anchorY + layout.top * cssScale - sheet.top;
+    if (dx || dy) els.sheet.style.transform = `translate(${dx}px, ${dy}px)`;
+  }
+
   context.setTransform(1, 0, 0, 1, 0, 0);
   context.clearRect(0, 0, pixelWidth, pixelHeight);
   paintBackground(context, layout, renderScale);
 
-  // Every ring first, then every picture: the shared band between two arranged
-  // pictures is the same pixels twice, and where they are still too close the
-  // picture sits on top of the border rather than being cropped by it.
+  // One picture at a time, from the back of the list forward, each with its own
+  // ring underneath it: a neighbour standing in front then covers the ring
+  // behind it, so the stack reads picture, ring, picture, ring rather than every
+  // ring landing on top of every picture.
   context.save();
   context.scale(renderScale, renderScale);
-  for (const cell of layout.cells) paintRing(context, cell, layout.border);
-  context.restore();
-
   for (const cell of layout.cells) {
-    if (!cell.source || !cell.source.bitmap) continue;
-    context.save();
-    context.scale(renderScale, renderScale);
-    paintPicture(context, cell, cell.source.bitmap, veilFor(cell.item));
-    context.restore();
+    paintRing(context, cell, layout.border);
+    if (cell.source && cell.source.bitmap) {
+      paintPicture(context, cell, cell.source.bitmap, veilFor(cell.item));
+    }
   }
+  context.restore();
 
   paintCrop(context, layout, renderScale);
 
@@ -2162,7 +2186,6 @@ function addSourceHere(source, point = null) {
       placed.x = Math.round(point.x - placed.w / 2);
       placed.y = Math.round(point.y - placed.h / 2);
       snapItem(placed);
-      clampItem(placed);
     }
     selectItem(placed.id);
     return;
@@ -2464,7 +2487,9 @@ function updateSelectionPanel() {
 const SNAP_SCREEN_PX = 9;
 const RESIZE_HANDLE_SCREEN_PX = 11;   // how close to an edge or corner sizes it
 
-// Pointer position in canvas coordinates (output pixels, before the outer mat).
+// Pointer position in picture coordinates.  The canvas is shifted so the
+// composition's own box starts at its corner, so the shift has to be added back
+// along with the outer frame.
 function layoutPoint(clientX, clientY) {
   const layout = computeLayout();
   const rect = els.canvas.getBoundingClientRect();
@@ -2472,8 +2497,8 @@ function layoutPoint(clientX, clientY) {
   const scale = rect.width / layout.width;
   if (!scale) return null;
   return {
-    x: (clientX - rect.left) / scale - layout.outer,
-    y: (clientY - rect.top) / scale - layout.outer,
+    x: (clientX - rect.left) / scale - layout.outer + layout.left,
+    y: (clientY - rect.top) / scale - layout.outer + layout.top,
   };
 }
 
@@ -2491,14 +2516,15 @@ function itemAt(layout, x, y) {
 // enough.  Neighbours meet edge to edge and then keep `border + spacing`
 // between their pictures, so the two rings share one band instead of stacking
 // into a double thickness: the snap lands on the middle of the two borders.
-// Both edges and centres of every other picture, and the canvas edge, are
-// candidates.
+// Both edges and centres of every other picture are candidates; there is no
+// canvas edge to snap to, because the canvas is only ever the pictures' own
+// bounding box.
 function snapItem(item) {
   const threshold = SNAP_SCREEN_PX / (lastCssScale || 1);
   const border = borderPx();
   const apart = border + spacingPx();
-  const xs = [border];
-  const ys = [border];
+  const xs = [];
+  const ys = [];
 
   for (const other of state.items) {
     if (other.id === item.id) continue;
@@ -2538,8 +2564,7 @@ function snapItem(item) {
 // The nearest place a single edge can land.  Edges are in picture coordinates
 // for the same reason a move snaps there: two neighbours are `border + spacing`
 // apart, so their rings share one band rather than stacking.  Both of a
-// neighbour's edges, the two positions that leave that gap, and the canvas edge
-// are candidates.
+// neighbour's edges, and the two positions that leave that gap, are candidates.
 function snapEdge(value, axis, item, threshold) {
   const border = borderPx();
   const apart = border + spacingPx();
@@ -2554,7 +2579,6 @@ function snapEdge(value, axis, item, threshold) {
     }
   };
 
-  consider(border);
   for (const other of state.items) {
     if (other.id === item.id) continue;
     const low = axis === 'x' ? other.x : other.y;
@@ -2592,6 +2616,7 @@ function startResize(item, handle, event, scale) {
   releaseEvenSize();
   const wasFit = state.zoom === 'fit';
   if (wasFit) state.zoom = scale;
+  holdView();
   resizeDrag = {
     item,
     handle,
@@ -2682,13 +2707,36 @@ function resizePointerMove(event) {
       : handle.includes('n') ? start.y + start.h - item.h
         : start.y + (start.h - item.h) / 2,
   );
-  clampItem(item);
 
   updateSelectionPanel();
   scheduleRender();
 }
 
 let canvasDrag = null;
+
+// The canvas is the pictures' own bounding box, so any gesture that moves a
+// picture can grow or shrink it, and the sheet is re-centred in the stage when
+// it does.  Pinning the sheet where it stood keeps the picture under the
+// pointer instead of letting it drift by half of every change.  The hold lasts
+// as long as the gesture; letting go returns the view to Fit.
+function holdView() {
+  if (viewHold) return;
+  const layout = computeLayout();
+  if (!layout) return;
+  const sheet = els.sheet.getBoundingClientRect();
+  // Where the sheet's corner has to stay, in screen pixels, for the content to
+  // stand still: the sheet's position less the shift the canvas has inside it.
+  viewHold = {
+    anchorX: sheet.left - layout.left * lastCssScale,
+    anchorY: sheet.top - layout.top * lastCssScale,
+  };
+}
+
+function releaseView() {
+  if (!viewHold) return;
+  viewHold = null;
+  els.sheet.style.transform = '';
+}
 
 function bindCanvas() {
   els.canvas.addEventListener('pointerdown', (event) => {
@@ -2727,9 +2775,11 @@ function bindCanvas() {
     selectItem(item.id);
 
     // The sheet is re-fitted after a drop, but during the drag it has to hold
-    // still: a changing scale would move the picture under the pointer.
+    // still: a changing scale would move the picture under the pointer, and so
+    // would the canvas growing as the picture passes an edge.
     const wasFit = state.zoom === 'fit';
     if (wasFit) state.zoom = scale;
+    holdView();
 
     canvasDrag = {
       item,
@@ -2774,7 +2824,6 @@ function bindCanvas() {
     // Shift places the picture exactly where the pointer is: no edge, centre
     // or gap is allowed to pull it off the line the hand drew.
     if (!event.shiftKey) snapItem(item);
-    clampItem(item);
     scheduleRender();
   });
 
@@ -2788,6 +2837,7 @@ function bindCanvas() {
       const { wasFit } = resizeDrag;
       resizeDrag = null;
       els.canvas.style.cursor = '';
+      releaseView();
       if (wasFit) state.zoom = 'fit';
       scheduleRender();
       commitHistory();
@@ -2798,6 +2848,7 @@ function bindCanvas() {
     canvasDrag = null;
     els.canvas.style.cursor = '';
     // Once the gesture is over the view fits the composition again.
+    releaseView();
     if (wasFit) state.zoom = 'fit';
     scheduleRender();
     commitHistory();
@@ -2902,7 +2953,6 @@ function scaleItemAboutCentre(item, factor) {
   item.h = Math.max(1, Math.round(size.h));
   item.x = Math.round(centreX - item.w / 2);
   item.y = Math.round(centreY - item.h / 2);
-  clampItem(item);
 
   updateSelectionPanel();
   scheduleRender();
@@ -2915,11 +2965,13 @@ function scaleItemAboutCentre(item, factor) {
 function holdZoomForWheel() {
   if (!wheelZoomHold) wheelZoomHold = { wasFit: state.zoom === 'fit' };
   if (wheelZoomHold.wasFit) state.zoom = lastCssScale;
+  holdView();
   clearTimeout(wheelZoomHold.timer);
   wheelZoomHold.timer = setTimeout(() => {
     if (!wheelZoomHold) return;
     const { wasFit } = wheelZoomHold;
     wheelZoomHold = null;
+    releaseView();
     if (wasFit) {
       state.zoom = 'fit';
       scheduleRender();
@@ -3316,7 +3368,6 @@ function bindControls() {
       if (event.key === 'ArrowRight') item.x += step;
       if (event.key === 'ArrowUp') item.y -= step;
       if (event.key === 'ArrowDown') item.y += step;
-      clampItem(item);
       scheduleRender();
     }
   });
@@ -3445,16 +3496,15 @@ async function exportImage() {
 
     paintBackground(ctx, layout, 1, opaque);
 
-    // The rings are flat colour and need nothing decoded, so they all go down
-    // before the slow part; each picture then lands on top of its own border.
-    for (const cell of layout.cells) paintRing(ctx, cell, layout.border);
-
+    // Each picture goes down with its own ring underneath it, in the list's
+    // order from the back, so a picture in front covers the border behind it.
+    // The ring is flat colour and needs nothing decoded; only the picture itself
+    // is decoded, one at a time, so the peak memory stays near a single picture.
     for (let index = 0; index < layout.cells.length; index += 1) {
       const cell = layout.cells[index];
+      paintRing(ctx, cell, layout.border);
       setBusyText(`Rendering image ${index + 1} of ${layout.cells.length}…`);
 
-      // Full resolution, decoded one picture at a time so the peak memory
-      // stays near a single picture rather than the whole stitch.
       if (!cell.source) continue;
       const bitmap = await decodeFull(cell.source.blob);
       try {

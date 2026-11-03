@@ -129,8 +129,15 @@ sit at different depths — and it is why `duplicateItem()` decodes the blob aga
 instead of sharing the bitmap: each row owns what it closes.
 
 `computeLayout()` turns the items into cells: `x = item.x - border + outer`,
-`w = item.w + border * 2`, and the canvas is the bounding box of the cells plus
-`outer` on the right and bottom. The cells are then sorted by `libraryOrder()`,
+`w = item.w + border * 2`. The canvas is the cells' own bounding box, plus
+`outer` on every side, and the cells are then shifted so that box starts at the
+canvas corner — nothing is anchored to an origin. That is what keeps the export
+snug (no blank margin can exist) and what lets a picture stand at a negative
+position: there is no canvas edge to hit, and dragging a picture up or left just
+grows the box that way. The box's unshifted position is returned as `left` and
+`top`, which is what `layoutPoint()` adds back to turn a pointer into picture
+coordinates and what `applyCrop()` adds when it puts a cropped picture back. The
+cells are then sorted by `libraryOrder()`,
 descending, so the first row of the list is the last cell drawn and therefore the
 picture in front. Only the cells are sorted: `state.items` keeps the placement
 order, so reordering the list restacks the canvas without moving a picture, and
@@ -147,13 +154,11 @@ of the items by each source's index, so reordering the image list and pressing a
 preset re-packs the row to match. Spacing never re-arranges a composition someone
 placed by hand — a new gap applies to the next placement and to snapping. The
 border does move the pictures, because a ring only shows where no neighbour
-stands on it: `spreadForBorder()` slides the composition by the border's own
-difference, so the ring's outer edge stays at the canvas edge, and carries each
-picture one further difference for every picture standing before it on that axis,
-so every gap opens or closes by exactly the change in thickness. A row packed by
-a preset comes out identical to pressing the preset again, a collage keeps its
-shape and only spreads, and no border is cut off by the canvas edge. `resizeItems()`
-re-derives `w` and `h`:
+stands on it: `spreadForBorder()` carries each picture one further difference for
+every picture standing before it on that axis, so every gap opens or closes by
+exactly the change in thickness. A row packed by a preset comes out identical to
+pressing the preset again, and a collage keeps its shape and only spreads.
+`resizeItems()` re-derives `w` and `h`:
 
 - **Even size on** shares one edge across the canvas: the height for a row, the
   width for a column, taken from the tallest/widest natural size. A newly placed
@@ -190,11 +195,10 @@ steps aside the way the wheel does, and the view is frozen for the gesture the
 same way a move freezes it. The moving edge snaps through `snapEdge()`, unless
 <kbd>Shift</kbd> is held. `snapEdge()` is `snapItem()`'s candidate set applied
 one edge at a time: a neighbour's two
-edges, the two positions that leave `border + spacing`, and the canvas edge at
-`border`. Because the anchor does not move, a snap changes the size rather than
-the placement. `handleAt()` belongs to the crop frame, whose handles are drawn
-and stay at the eight points; `resizeHandleAt()` is the picture's. A drag
-anywhere else still moves.
+edges and the two positions that leave `border + spacing`. Because the anchor
+does not move, a snap changes the size rather than the placement. `handleAt()`
+belongs to the crop frame, whose handles are drawn and stay at the eight points;
+`resizeHandleAt()` is the picture's. A drag anywhere else still moves.
 
 The six align buttons under the preset (`alignAll`) are an action on the
 composition, like a preset: top, middle and bottom move every picture to the
@@ -212,19 +216,27 @@ up against and the answer would be itself.
 Dragging is pointer-based, not HTML5 drag. The pointer delta is divided by the
 scale the canvas had when the gesture started, so a re-fitted sheet cannot move
 the picture under the cursor; `state.zoom` is frozen from `'fit'` to a number
-during the drag and restored after. `snapItem()` works in picture coordinates
+during the drag and restored after. The canvas is the pictures' own bounds, so a
+gesture can also grow it, and the stage re-centres a sheet that changes size;
+`holdView()` records where the sheet has to stay on screen and `render()` applies
+the counter-shift as a transform on `#sheet`, so the picture stays under the
+pointer instead of drifting by half of every change. The hold is taken when a
+move, a resize or a wheel run begins and dropped on release, which is also when
+the view returns to Fit. `snapItem()` works in picture coordinates
 rather than cell coordinates, because the rings of two neighbours share their
 pixels: it looks at the other pictures' two edges, the position that leaves
 `border + spacing` between the pictures, the aligned opposite edge and the centre
-line, plus the canvas edge at `border`, with a threshold of 9 screen pixels
-divided by the preview scale. <kbd>Shift</kbd> during the drag skips
+line, with a threshold of 9 screen pixels
+divided by the preview scale. There is no canvas edge in that set, because the
+canvas is only ever the pictures' own box. <kbd>Shift</kbd> during the drag skips
 `snapItem()` entirely, and the same flag skips `snapEdge()` in
 `resizePointerMove()`, so a picture can be put exactly where the pointer says.
 
 The arrow keys nudge the selected picture — 1 px, or 10 px with <kbd>Shift</kbd>
-— through `clampItem()` and `scheduleRender()`, so a run of nudges lands in the
-history as one step. They no longer step the selection: arrows are the move key
-and nothing else.
+— through `scheduleRender()`, so a run of nudges lands in the history as one step.
+Nothing clamps a position: a picture may sit at a negative coordinate, and the
+canvas follows it there. They no longer step the selection: arrows are the move
+key and nothing else.
 
 `paintBackground` paints no background at all: only an outer frame is drawn,
 as a band, and the inside is cleared again so the gaps between pictures stay
@@ -232,9 +244,12 @@ transparent and the preview shows the stage through them. A JPEG export fills
 the whole canvas with `backdrop` first and skips the clear, since JPEG has no
 alpha.
 
-`paintRing` and `paintPicture` are separate calls: every ring on the canvas is
-painted before any picture, so a border that a neighbour stands too close for
-ends up underneath that neighbour rather than cropping it. `paintPicture` clips
+`paintRing` and `paintPicture` are separate calls, made per cell as the cells are
+walked from the back of the list forward: each picture's ring goes down just
+before the picture, so a picture standing in front covers the ring behind it and
+the stack reads picture, ring, picture, ring rather than every ring landing on
+top of every picture. `render()` and `exportImage()` both walk the cells this
+way. `paintPicture` clips
 to the content rect and draws the picture over it, applying rotation and the
 flips inside the same `save`/`restore`. The rect is the picture's own: there is
 no letterbox to fill and no overflow to crop away. `drawFitted()` takes the
