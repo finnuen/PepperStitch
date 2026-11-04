@@ -57,6 +57,7 @@ const DEFAULTS = {
   quality: 0.92,
   theme: 'dark',
   railWidth: 194,
+  exportCount: 1,
 };
 
 // What a switch seeds when it is turned on and its value is still zero, so
@@ -3455,11 +3456,22 @@ function zoomBy(factor) {
 //  Export
 // ---------------------------------------------------------------------------
 
+// The number in the name is the app's own count of exports, not a look at the
+// folder: the dialog can open wherever the shell last was, so a name checked
+// against one folder could be offered in another.  The count is kept with the
+// settings, so a restart carries on rather than starting again at the first
+// name, and the shell still asks before an export replaces a file.
 function exportFileName(extension) {
   const firstItem = state.items[0];
   const source = firstItem ? sourceById(firstItem.sourceId) : state.sources[0];
   const base = source ? baseNameOf(source.name) : 'pepperstitch';
-  return `${base}-stitch.${extension}`;
+  const count = Math.max(1, Math.round(Number(state.exportCount) || 1));
+  return `${base}-stitch${count > 1 ? `_${count}` : ''}.${extension}`;
+}
+
+function advanceExportCount() {
+  state.exportCount = Math.max(1, Math.round(Number(state.exportCount) || 1)) + 1;
+  saveSettingsSoon();
 }
 
 async function exportImage() {
@@ -3528,6 +3540,7 @@ async function exportImage() {
 
     if (!host.available) {
       downloadBlob(blob, name);
+      advanceExportCount();
       toast(`Exported ${name} (${formatBytes(blob.size)}) to your downloads.`);
       return;
     }
@@ -3542,6 +3555,7 @@ async function exportImage() {
     if (result.cancelled) return;
     if (!result.ok) throw new Error(result.error || 'the file could not be saved');
 
+    advanceExportCount();
     const savedName = String(result.path).split(/[\\/]/).pop();
     toast(
       `Saved ${savedName} · ${layout.width} × ${layout.height} · ${formatBytes(blob.size)}`,

@@ -14,7 +14,8 @@ installer, no browser window, no cloud, no account.
 - **Single file:** about 800 kB, runs from any folder, writes only to
   `%LOCALAPPDATA%\PepperStitch`.
 - **Exports:** PNG, JPEG and WebP at full resolution, with transparent gaps in
-  PNG and WebP.
+  PNG and WebP, and numbered names (`holiday-stitch.png`, `holiday-stitch_2.png`,
+  …) so a second export never lands on the first.
 - **Licence:** Apache 2.0 — free for personal or commercial use.
 
 It is a quick way to join a before-and-after pair, a step-by-step sequence, a
@@ -175,6 +176,13 @@ number that is already published. `--same` rebuilds without bumping;
 That one number names the executable, fills in the version resource, and shows
 up as `PepperStitch_v<version>` in the title bar and in the app's own header.
 Exported pictures keep the plain name.
+
+The file the Save dialog offers steps forward instead of landing on the last
+export: the first is `holiday-stitch.png`, then `holiday-stitch_2.png`,
+`holiday-stitch_3.png`, and so on. The number is the app's own count of exports,
+kept with the settings, so it carries on across restarts and moves only when a
+file is actually saved — cancelling the dialog and exporting again offers the
+same name.
 
 The interface is compiled into the executable as a resource, not shipped beside
 it. On start-up it is unpacked into `%LOCALAPPDATA%\PepperStitch\assets`, so the

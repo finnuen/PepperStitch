@@ -440,6 +440,18 @@ The icon is white photos on a red tile, the same red as PepperSnap's
 `tools/make-icon.ps1` writes both `src/app.ico` and `docs/icon.png`; run it and
 rebuild after touching it.
 
+## The export's name
+
+`exportFileName()` in `app.js` names an export `<first picture>-stitch.<ext>`,
+and numbers the ones after it: `holiday-stitch.png`, `holiday-stitch_2.png`,
+`holiday-stitch_3.png`. The number is the app's own count of exports, held in
+`exportCount` with the other settings, so a restart carries on rather than
+offering the first name again. It is deliberately not a look at the folder: the
+dialog can be opened anywhere, and a name checked against one folder could be
+offered in another. `advanceExportCount()` runs only when the bytes have been
+written, so cancelling the dialog and exporting again offers the same name, and
+the shell's overwrite prompt is still what protects a name typed by hand.
+
 ## Testing
 
 **In a browser.** The page works outside WebView2 (export falls back to a
