@@ -95,6 +95,20 @@ new *virtual* host means changing both the CSP and the
 browser is meant to reach needs only the CSP entry, since the request never
 comes near `HandleResourceRequest`.
 
+**The frame never keeps the keyboard.** The whole client area is the page, so
+`WM_SETFOCUS` passes the focus on with
+`ICoreWebView2Controller::MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC)`,
+and `NavigationCompletedHandler` does the same once the interface has arrived,
+for a launch nobody has clicked yet. Windows gives the focus to the frame at
+several ordinary moments — a click on the title bar, a window restored from the
+taskbar, the Save dialog closing — and while the frame holds it the page hears no
+keys at all, so `Ctrl+E`, `Ctrl+S` and the arrow keys all go dead until the
+canvas is clicked.
+
+Do not let a `case` fall out of the switch in `WindowProcedure`: the function
+has no `return` after it, and GCC compiles that path to an illegal instruction,
+which takes the whole app down at start-up.
+
 **The Save dialog runs on its own thread.** Opening `GetSaveFileNameW` straight
 from the resource callback hangs before it draws anything: the callback is on the
 window thread, the page is waiting for the response, and the shell dialog never

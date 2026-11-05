@@ -1072,6 +1072,14 @@ public:
                           L"Try running PepperStitch again, or delete\n"
                           L"%LOCALAPPDATA%\\PepperStitch\\assets and restart.",
                           kAppName, MB_ICONERROR | MB_OK);
+            return S_OK;
+        }
+        // The window is shown and focused before the interface exists, so a
+        // launch that has never been clicked leaves the focus on the frame.
+        // The page has just arrived; hand it over, unless the user has already
+        // moved on to another window.
+        if (g_app.controller != nullptr && ::GetFocus() == g_app.window) {
+            g_app.controller->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
         }
         return S_OK;
     }
@@ -1299,6 +1307,18 @@ LRESULT CALLBACK WindowProcedure(HWND window, UINT message, WPARAM wParam, LPARA
 
     case WM_SIZE:
         SizeController();
+        return 0;
+
+    case WM_SETFOCUS:
+        // The whole client area is the page, so keyboard focus belongs in it.
+        // Windows hands focus to the frame in several ordinary moments - a click
+        // on the title bar, a window restored from the taskbar, the Save dialog
+        // closing - and while the frame holds it the page hears no keys at all:
+        // Ctrl+E and Ctrl+S do nothing until the canvas is clicked. Pass it on.
+        // (Nothing else here wants the focus, so the frame never keeps it.)
+        if (g_app.controller != nullptr) {
+            g_app.controller->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
+        }
         return 0;
 
     case WM_GETMINMAXINFO: {
