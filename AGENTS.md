@@ -384,7 +384,7 @@ from.
 | --- | --- | --- |
 | library | click | place the source beside the last item, or choose it if it is already on the canvas |
 | library | drag up or down | reorder the list, and the canvas restacks to match |
-| library | drag out to the stage | carry a ghost; drop on the stage to place the picture there, or to move it if it is already placed |
+| library | drag out to the stage | carry a ghost; drop on the stage to place the picture there, or to drop another copy of it if it is already placed |
 | library | × | remove the source and its picture from the canvas |
 | library | right-click | nothing |
 | canvas | click / drag | select and move; snaps to neighbours, and the chosen picture's row in the list lights up |
@@ -416,8 +416,11 @@ middles (`moveInStrip`), and the order is read back off the list on release
 (`finishReorder`), so the DOM is the draft and `state.sources` is written once.
 That order is the stacking order too, so a reorder restacks the canvas as it
 happens. A click on a row that is already placed chooses it (`addSourceHere`),
-and a carry that ends on the stage moves that picture rather than adding a second
-one: one row is one picture, and **Duplicate** is what makes another.
+and a carry that ends on the stage lays down another copy of that picture where
+it was dropped (`dropSourceAt`, through `duplicateItem` with the drop point) —
+the first drag places, every drag after it copies, and the picture already there
+is left alone. The copy is a row of its own, exactly as **Duplicate** makes it:
+one row is still one picture, so the two can sit at different depths.
 **Bring to front** and **Send to back** — the first two buttons under the selected
 picture, and the top two entries of the right-click menu — are `moveSourceToEdge()`,
 the same act as dragging the row to the top or bottom of the list.

@@ -26,7 +26,8 @@ editor.
 
 - **A library and a canvas.** Every picture you open joins the library. Click
   one to place it beside the last, or drag it onto the canvas to put it where
-  you drop it; click it again and it is chosen rather than added a second time.
+  you drop it; drag it out again and another copy lands where you let go, and
+  again for a third. Click it and it is chosen rather than added.
   **The list is the stacking order**: the first picture in it is the one in
   front, so dragging a thumbnail up or down restacks the canvas as it goes.
   **Duplicate** gives the copy a row of its own, marked *copy*, so the two can

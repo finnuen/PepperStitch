@@ -631,8 +631,10 @@ function clearImages() {
 // A duplicate is its own entry in the list rather than a second copy hidden
 // behind one row: the list is the hierarchy, so a copy needs a place of its own
 // to be brought forward or sent back to.  The pixels are decoded again instead
-// of shared, so each row owns the bitmap it closes when the row goes.
-async function duplicateItem(id) {
+// of shared, so each row owns the bitmap it closes when the row goes.  Given a
+// `point` the copy is centred there rather than set beside the original, which
+// is what a picture dragged out of the list a second time asks for.
+async function duplicateItem(id, point = null) {
   const original = state.items.find((item) => item.id === id);
   if (!original) return;
   const source = sourceById(original.sourceId);
@@ -666,10 +668,18 @@ async function duplicateItem(id) {
   };
   state.items.push(item);
 
-  // The copy lands immediately to the right of the original.
-  const border = borderPx();
-  item.x = original.x + original.w + border * 2 + spacingPx();
-  item.y = original.y;
+  if (point) {
+    // Carried out of the list a second time: the copy's centre goes where the
+    // pointer let go, and the picture already there stays where it was.
+    item.x = Math.round(point.x - item.w / 2);
+    item.y = Math.round(point.y - item.h / 2);
+    snapItem(item);
+  } else {
+    // The copy lands immediately to the right of the original.
+    const border = borderPx();
+    item.x = original.x + original.w + border * 2 + spacingPx();
+    item.y = original.y;
+  }
 
   state.selectedItemId = item.id;
   renderStrip();
@@ -1968,7 +1978,7 @@ function renderStrip() {
     item.tabIndex = 0;
     item.dataset.id = String(source.id);
     item.title = `${source.name}\n${formatNumber(source.width)} × ${formatNumber(source.height)} px\n` +
-      'Click to place or select · drag onto the canvas to put it there · drag up or down to restack';
+      'Click to place or select · drag onto the canvas to put it there, again for another copy · drag up or down to restack';
 
     // A copy of another picture says so, because the list is the hierarchy and
     // the two rows can sit at different depths.
@@ -2182,17 +2192,14 @@ function bindRailResize() {
 }
 
 // One row is one picture.  A click on a row that is already on the canvas
-// chooses it rather than adding a second copy - Duplicate is what adds one - and
-// a row dragged out to the stage puts its picture where the pointer let go.
+// chooses it rather than adding a second copy; a row carried out to the stage
+// again is how a second copy is made, and Duplicate does the same from the
+// panel.  A row that is not on the canvas yet is simply placed where it is let
+// go.
 function addSourceHere(source, point = null) {
   const placed = state.items.find((item) => item.sourceId === source.id);
 
   if (placed) {
-    if (point) {
-      placed.x = Math.round(point.x - placed.w / 2);
-      placed.y = Math.round(point.y - placed.h / 2);
-      snapItem(placed);
-    }
     selectItem(placed.id);
     return;
   }
@@ -2201,6 +2208,19 @@ function addSourceHere(source, point = null) {
   renderStrip();
   updateSelectionPanel();
   scheduleRender();
+}
+
+// What a carry dropped on the stage means: the first time it places the
+// picture, and every time after that it lays down another copy of it.  The
+// original is left alone, which is what makes the gesture repeatable - drag the
+// same row out three times and there are three pictures.
+function dropSourceAt(source, point) {
+  const placed = state.items.find((item) => item.sourceId === source.id);
+  if (placed) {
+    duplicateItem(placed.id, point);
+    return;
+  }
+  addSourceHere(source, point);
 }
 
 // Carrying a picture out of the list: a click adds it after the last one, a
@@ -2351,7 +2371,7 @@ function onCarryUp(event) {
     return;
   }
   if (!pointInRect(event.clientX, event.clientY, els.stage.getBoundingClientRect())) return;
-  addSourceHere(gesture.source, layoutPoint(event.clientX, event.clientY));
+  dropSourceAt(gesture.source, layoutPoint(event.clientX, event.clientY));
 }
 
 // ---------------------------------------------------------------------------
