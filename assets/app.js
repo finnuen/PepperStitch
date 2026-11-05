@@ -87,6 +87,10 @@ let lastCssScale = 1;
 let renderQueued = false;
 let settingsTimer = 0;
 
+// The version the host opened the page with (`?v=`, e.g. "1.0.10"): the name
+// the header shows, and the number the update check compares against.
+let appVersion = '';
+
 // While a gesture runs, the canvas is pinned where it was when the gesture
 // began: the box follows the pictures, so moving one past an edge would
 // otherwise shift the whole composition under the pointer.  See holdView().
@@ -113,6 +117,7 @@ const els = {
   qualityField: $('qualityField'),
   qualityValue: $('qualityValue'),
   themeButton: $('themeButton'),
+  updateButton: $('updateButton'),
 
   strip: $('strip'),
   imageCount: $('imageCount'),
@@ -1908,7 +1913,7 @@ function updateStatus(layout) {
   els.limit.hidden = !limit;
   if (limit) els.limit.textContent = limit;
 
-  els.statusHint.textContent = limit ? 'Too large to export' : 'Ctrl+E to export';
+  els.statusHint.textContent = limit ? 'Too large to export' : 'Ctrl+E or Ctrl+S to export';
 }
 
 function updateEmptyState() {
@@ -1929,7 +1934,7 @@ function updateZoomLabel(scale) {
 function updateExportState(layout) {
   const limit = canvasLimitMessage(layout);
   els.exportButton.disabled = !layout || !!limit;
-  els.exportButton.title = limit ? 'The output is larger than a canvas allows' : 'Export (Ctrl+E)';
+  els.exportButton.title = limit ? 'The output is larger than a canvas allows' : 'Export (Ctrl+E or Ctrl+S)';
 }
 
 // ---------------------------------------------------------------------------
@@ -3173,6 +3178,8 @@ function bindControls() {
     saveSettingsSoon();
   });
 
+  els.updateButton.addEventListener('click', checkForUpdate);
+
   els.format.addEventListener('change', () => {
     setValue('format', els.format.value);
     updateDependentLabels();
@@ -3306,7 +3313,11 @@ function bindControls() {
       els.fileInput.click();
       return;
     }
-    if (ctrl && event.key.toLowerCase() === 'e') {
+    // Ctrl+E is the app's own export key; Ctrl+S is the one every other program
+    // has taught the hand, so it does the same thing rather than nothing. Both
+    // are swallowed here, which also stops WebView2's own "save page" accelerator
+    // from opening a dialog for the interface itself.
+    if (ctrl && (event.key.toLowerCase() === 'e' || event.key.toLowerCase() === 's')) {
       event.preventDefault();
       if (!els.exportButton.disabled) exportImage();
       return;
@@ -3591,6 +3602,80 @@ function formatBytes(bytes) {
 }
 
 // ---------------------------------------------------------------------------
+//  Checking for a newer release
+//
+//  The one errand the page runs over the network, and only when the button in
+//  the header is pressed: the tag of the latest release, from the public GitHub
+//  API.  Nothing is downloaded and nothing happens at start-up; the answer is a
+//  toast, and the release page opens in the browser if you want it.  A machine
+//  with no connection simply gets the "could not check" toast.
+// ---------------------------------------------------------------------------
+
+const RELEASES_API = 'https://api.github.com/repos/finnuen/PepperStitch/releases/latest';
+
+function versionNumbers(text) {
+  return String(text || '')
+    .replace(/^v/i, '')
+    .split(/[.\-+]/)
+    .map((part) => Number.parseInt(part, 10) || 0);
+}
+
+function isNewerVersion(candidate, current) {
+  const a = versionNumbers(candidate);
+  const b = versionNumbers(current);
+  for (let i = 0; i < Math.max(a.length, b.length); i += 1) {
+    const left = a[i] || 0;
+    const right = b[i] || 0;
+    if (left !== right) return left > right;
+  }
+  return false;
+}
+
+async function checkForUpdate() {
+  const button = els.updateButton;
+  if (!button || button.disabled) return;
+  button.disabled = true;
+  button.textContent = 'Checking…';
+
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), 12000);
+
+  try {
+    const response = await fetch(RELEASES_API, {
+      cache: 'no-store',
+      headers: { Accept: 'application/vnd.github+json' },
+      signal: abort.signal,
+    });
+    if (!response.ok) throw new Error(`GitHub answered ${response.status}`);
+    const release = await response.json();
+    const latest = String(release.tag_name || '').replace(/^v/i, '');
+    if (!latest) throw new Error('the release had no version');
+
+    const open = {
+      label: 'Open release',
+      run: () => window.open(release.html_url, '_blank', 'noopener'),
+    };
+
+    if (!appVersion) {
+      toast(`The latest release is PepperStitch ${latest}.`, 'info', open);
+    } else if (isNewerVersion(latest, appVersion)) {
+      toast(`PepperStitch ${latest} is available. This is ${appVersion}.`, 'info', open);
+    } else {
+      toast(`PepperStitch ${appVersion} is the latest version.`, 'info');
+    }
+  } catch (error) {
+    const reason = error && error.name === 'AbortError'
+      ? 'GitHub did not answer'
+      : String(error && error.message ? error.message : error);
+    toast(`Could not check for updates: ${reason}.`, 'error');
+  } finally {
+    clearTimeout(timer);
+    button.disabled = false;
+    button.textContent = 'Check for updates';
+  }
+}
+
+// ---------------------------------------------------------------------------
 //  Start-up
 // ---------------------------------------------------------------------------
 
@@ -3598,6 +3683,7 @@ function formatBytes(bytes) {
 // bar alike, so two builds can be told apart at a glance.
 function setVersion() {
   const version = new URLSearchParams(location.search).get('v');
+  appVersion = version || '';
   const name = version ? `PepperStitch_v${version}` : 'PepperStitch';
   els.statusVersion.textContent = name;
   if (els.brandName) els.brandName.textContent = name;
@@ -3674,4 +3760,7 @@ window.PepperStitch = {
   redo,
   commitHistory,
   undoSteps,
+  checkForUpdate,
+  isNewerVersion,
+  version: () => appVersion,
 };

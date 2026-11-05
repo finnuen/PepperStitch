@@ -88,9 +88,12 @@ to load and the fetch for saving fails, both silently. `HandleResourceRequest`
 also answers `OPTIONS` with 204 *before* dispatching, because otherwise the
 preflight for the export POST would reach `HandleSave` and open a file dialog.
 
-CSP is set in `index.html`; `connect-src` lists the three hosts. Adding a new
-host means changing both the CSP and the `AddWebResourceRequestedFilter` list in
-`InitializePage`.
+CSP is set in `index.html`; `connect-src` lists the three hosts plus
+`https://api.github.com`, which the update check is the only user of. Adding a
+new *virtual* host means changing both the CSP and the
+`AddWebResourceRequestedFilter` list in `InitializePage`; a real host the
+browser is meant to reach needs only the CSP entry, since the request never
+comes near `HandleResourceRequest`.
 
 **The Save dialog runs on its own thread.** Opening `GetSaveFileNameW` straight
 from the resource callback hangs before it draws anything: the callback is on the
@@ -99,6 +102,28 @@ gets to its message loop. So `HandleSave` takes a deferral (`GetDeferral`), hand
 a `SaveJob` to `CreateThread`, and the worker posts `kSaveFinishedMessage` back
 to the window, which answers the request and calls `Complete()`. Do not "simplify"
 this back into a synchronous dialog call.
+
+## Checking for updates
+
+`#updateButton`, the quiet text button right of the brand, is the only part of
+the page that talks to a real host. `checkForUpdate()` fetches
+`RELEASES_API` — `https://api.github.com/repos/finnuen/PepperStitch/releases/latest`
+— reads `tag_name`, and compares it with `appVersion`, which `setVersion()`
+takes from the `?v=` the host appends to the page. `isNewerVersion()` compares
+the numbers part by part, so 1.0.10 counts as newer than 1.0.9 rather than older
+the way a string comparison would have it. The answer is a toast: the latest
+version, or a newer one with an **Open release** action, or the failure in red.
+The button is disabled and relabelled while the request is out, and a twelve
+second abort keeps a dead connection from leaving it that way.
+
+Nothing is downloaded, and nothing runs at start-up: the check is one request
+when the button is pressed, so the app is offline unless asked. Opening the
+release page is `window.open`, which `NewWindowRequestedHandler` hands to
+`ShellExecuteW`, so it lands in the default browser rather than a WebView2
+popup. The host has no network code at all — no winhttp, wininet, urlmon or
+ws2_32 among its imports — so the `connect-src` entry for `api.github.com` is
+the whole of the permission, and the three virtual hosts are still the only
+other things the page can reach.
 
 ## The layout model
 
@@ -359,6 +384,7 @@ from.
 | canvas | right-click | Bring to front, Send to back, Rotate 90°, Flip horizontal, Flip vertical, Remove |
 | preset | align buttons | line the pictures up, one axis at a time: the row's tops for Horizontal, the column's lefts for Vertical |
 | header | Undo / Redo | step back or forward through the composition |
+| keyboard | <kbd>Ctrl</kbd>+<kbd>E</kbd> / <kbd>Ctrl</kbd>+<kbd>S</kbd> | export, unless the layout is over the canvas ceiling |
 | keyboard | arrow | nudge the selected picture 1 px; <kbd>Shift</kbd> makes it 10 px |
 | keyboard | <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> | the same, or <kbd>Ctrl</kbd>+<kbd>Y</kbd> for redo |
 | crop frame | drag inside | draw a new frame, or move it once it is smaller |

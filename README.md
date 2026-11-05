@@ -104,6 +104,11 @@ editor.
 - **Right-click a picture on the canvas** to rotate it, flip it or remove it.
 - **Export at full resolution.** The preview is a downscaled stand-in; the
   exported file is built from the original pictures, one at a time.
+- **Check for updates.** A quiet **Check for updates** link sits beside the name
+  in the header. Pressed, it asks the GitHub releases API once, says whether a
+  newer version exists, and offers to open its release page in the browser.
+  Nothing is downloaded, and nothing happens at start-up: the app only goes
+  online when you ask it to.
 
 Pictures arrive by drop, by **Add images** / <kbd>Ctrl</kbd>+<kbd>O</kbd>, by
 paste (<kbd>Ctrl</kbd>+<kbd>V</kbd>), or by passing them on the command line:
@@ -120,7 +125,7 @@ canvas it adds them to the library and places them where you let go.
 | Keys | Action |
 | --- | --- |
 | <kbd>Ctrl</kbd>+<kbd>O</kbd> | Add images to the library |
-| <kbd>Ctrl</kbd>+<kbd>E</kbd> | Export |
+| <kbd>Ctrl</kbd>+<kbd>E</kbd> / <kbd>Ctrl</kbd>+<kbd>S</kbd> | Export |
 | <kbd>Ctrl</kbd>+<kbd>0</kbd> | Fit the preview to the window |
 | <kbd>Ctrl</kbd>+wheel | Zoom the preview |
 | wheel | Resize the picture under the pointer |
@@ -209,6 +214,9 @@ event instead of the network:
 | `https://file.local/<n>` | pictures the host was handed (command line, drop) |
 | `https://save.local/save` | shows the Save dialog and writes the exported bytes |
 | `https://host.local/…` | `/ready`, `/reveal`, `/theme`, `/devtools` |
+
+The page's only outbound request is the update check, and only while its button
+is being pressed; everything else it loads comes from those virtual hosts.
 
 All of this happens in the page: layout, preview painting and export, on
 canvases. The host never decodes an image.

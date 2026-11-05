@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy"
-      content="default-src 'none'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; script-src 'self' file:; connect-src https://file.local https://save.local https://host.local; font-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+      content="default-src 'none'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; script-src 'self' file:; connect-src https://file.local https://save.local https://host.local https://api.github.com; font-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>PepperStitch</title>
 <link rel="stylesheet" href="style.css">
 </head>
@@ -26,6 +26,9 @@
       <span class="name" id="brandName">PepperStitch</span>
     </div>
 
+    <button class="update-check" id="updateButton" type="button"
+            title="Ask GitHub whether a newer version has been released">Check for updates</button>
+
     <div class="title-actions">
       <button class="btn" id="addButton" title="Add images (Ctrl+O)">
         <svg viewBox="0 0 16 16" class="glyph" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
@@ -44,7 +47,7 @@
           <input type="range" id="quality" min="0.5" max="1" step="0.01" value="0.92" aria-label="Export quality">
           <span class="quality-value" id="qualityValue">92</span>
         </label>
-        <button class="btn primary" id="exportButton" title="Export (Ctrl+E)">Export</button>
+        <button class="btn primary" id="exportButton" title="Export (Ctrl+E or Ctrl+S)">Export</button>
       </div>
       <span class="sep"></span>
       <button class="icon-button" id="undoButton" title="Undo (Ctrl+Z)" aria-label="Undo" disabled>
