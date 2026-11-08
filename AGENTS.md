@@ -38,6 +38,12 @@ cannot ship under a number that is already published. `--same` rebuilds without
 bumping, `--version` sets the number outright, and a debug build never bumps.
 The stamp sits inside `build\`, so `--clean` makes the next build bump.
 
+A release is tagged with the bare version — `1.0.13`, no `v` — and titled
+`PepperStitch v1.0.13`. It attaches `PepperStitch.exe`: the file in `dist\`
+renamed without its version, and nothing else. The build bumps PATCH on its own;
+the agent may start a new minor with `--version 1.1.0` when a change warrants
+it, and the leading digit moves only when the user asks for it.
+
 ## Layout
 
 ```
