@@ -27,22 +27,23 @@ Without `--webview2`, CMake downloads the WebView2 SDK from NuGet at configure
 time. An already unpacked SDK avoids the download; on this machine there is one
 at `..\JustViewMD\build\_deps\webview2\extracted\build\native`.
 
-The version lives in one place: `project(PepperStitch VERSION x.y.z ...)` in
-`CMakeLists.txt`. CMake generates `version_generated.h` and the app.rc version
-block from it, and names the executable after it.
+The version lives in one place: `project(PepperStitch VERSION 1.14 ...)` in
+`CMakeLists.txt`, in two digits. CMake generates `version_generated.h` and the
+app.rc version block from it (padding the patch to 0, so the resource still
+carries four numbers), and names the executable after it.
 
-`build.bat` bumps PATCH by itself when a file under `src/` or `assets/` is newer
-than the last successful build, through `tools/bump-version.ps1`, which stamps
-`build\.ps-version-stamp` once the exe has been copied. A change therefore
+`build.bat` bumps the last digit by itself when a file under `src/` or `assets/`
+is newer than the last successful build, through `tools/bump-version.ps1`, which
+stamps `build\.ps-version-stamp` once the exe has been copied. A change therefore
 cannot ship under a number that is already published. `--same` rebuilds without
 bumping, `--version` sets the number outright, and a debug build never bumps.
 The stamp sits inside `build\`, so `--clean` makes the next build bump.
 
-A release is tagged with the bare version — `1.0.13`, no `v` — and titled
-`PepperStitch v1.0.13`. It attaches `PepperStitch.exe`: the file in `dist\`
-renamed without its version, and nothing else. The build bumps PATCH on its own;
-the agent may start a new minor with `--version 1.1.0` when a change warrants
-it, and the leading digit moves only when the user asks for it.
+A release is tagged with the bare version — `1.14`, no `v` — and titled
+`PepperStitch v1.14`. It attaches `PepperStitch.exe`: the file in `dist\`
+renamed without its version, and nothing else. The build bumps the last digit on
+its own; the agent may move the digit before it when a change warrants it, and
+the leading digit moves only when the user asks for it.
 
 ## Layout
 
@@ -346,6 +347,16 @@ size. Enter keeps the crop, Escape drops it, and the floating `.crop-bar` carrie
 the same two answers where the frame is; Enter inside the ratio field only leaves
 the field.
 
+**Uncrop** (`uncropItem`) gives the whole picture back and leaves the cropped
+part exactly where it was in the composition: it keeps its place and its size,
+and the rest of the picture appears around it. The scale is read off the item's
+own width against its cropped natural size — not `item.scale`, which Even size
+leaves at 1 — and the picture's centre moves by the crop's offset, turned and
+flipped the way the picture is drawn, so a rotated or mirrored picture comes out
+the same way. The button sits beside **Crop** and is live only once the picture
+has a crop; `U` does the same. The item's size changes, so Even size is not
+re-read until the next preset, exactly as after a crop.
+
 The preview canvas is capped at 1800 px decode and paints at
 `min(cssScale * devicePixelRatio, 1)` backing pixels. Export uses the same
 painting functions on an offscreen canvas at 1:1, decoding full-resolution
@@ -404,6 +415,8 @@ from.
 | canvas | right-click | Bring to front, Send to back, Rotate 90°, Flip horizontal, Flip vertical, Remove |
 | preset | align buttons | line the pictures up, one axis at a time: the row's tops for Horizontal, the column's lefts for Vertical |
 | header | Undo / Redo | step back or forward through the composition |
+| selected image | Crop | open the crop frame on the chosen picture (also <kbd>C</kbd>) |
+| selected image | Uncrop | give the whole picture back, leaving the cropped part where it is and at its size (also <kbd>U</kbd>) |
 | keyboard | <kbd>Ctrl</kbd>+<kbd>E</kbd> / <kbd>Ctrl</kbd>+<kbd>S</kbd> | export, unless the layout is over the canvas ceiling |
 | keyboard | arrow | nudge the selected picture 1 px; <kbd>Shift</kbd> makes it 10 px |
 | keyboard | <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> | the same, or <kbd>Ctrl</kbd>+<kbd>Y</kbd> for redo |

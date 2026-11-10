@@ -146,6 +146,7 @@ const els = {
   backButton: $('backButton'),
   rotateButton: $('rotateButton'),
   cropButton: $('cropButton'),
+  uncropButton: $('uncropButton'),
   duplicateButton: $('duplicateButton'),
   removeButton: $('removeButton'),
   alignLeft: $('alignLeft'),
@@ -1475,6 +1476,51 @@ function applyCrop() {
   scheduleRender();
 }
 
+// Uncrop gives the whole picture back and leaves the part that was on show
+// exactly where it was, at the size it had: the crop rectangle stays put and
+// the rest of the picture appears around it.  So the scale is unchanged and the
+// item grows outward from the crop's own centre - the picture's centre moves by
+// the crop's offset, turned and flipped the way the picture is drawn.
+function uncropItem(item = selectedItem()) {
+  if (!item || !item.crop) return;
+  const source = sourceById(item.sourceId);
+  if (!source) return;
+
+  // The scale is read off what is on screen rather than from `item.scale`,
+  // which Even size leaves at 1 while it decides the size itself.
+  const natural = naturalSizeOf(item);
+  const scale = natural.width > 0 ? item.w / natural.width : 1;
+  const fullWidth = source.width * scale;
+  const fullHeight = source.height * scale;
+
+  const centreX = item.x + item.w / 2;
+  const centreY = item.y + item.h / 2;
+
+  const crop = item.crop;
+  let localX = (crop.x + crop.w / 2 - 0.5) * fullWidth;
+  let localY = (crop.y + crop.h / 2 - 0.5) * fullHeight;
+  if (item.flipH) localX = -localX;
+  if (item.flipV) localY = -localY;
+
+  const angle = (item.rot * Math.PI) / 180;
+  const offsetX = localX * Math.cos(angle) - localY * Math.sin(angle);
+  const offsetY = localX * Math.sin(angle) + localY * Math.cos(angle);
+
+  const rotated = item.rot % 180 !== 0;
+  const width = rotated ? fullHeight : fullWidth;
+  const height = rotated ? fullWidth : fullHeight;
+
+  item.crop = null;
+  item.scale = scale;
+  item.w = Math.max(1, Math.round(width));
+  item.h = Math.max(1, Math.round(height));
+  item.x = Math.round(centreX - offsetX - width / 2);
+  item.y = Math.round(centreY - offsetY - height / 2);
+
+  updateSelectionPanel();
+  scheduleRender();
+}
+
 // The picture left the canvas (or the library) under the frame.
 function dropStaleCrop() {
   if (cropEdit && !state.items.some((item) => item.id === cropEdit.itemId)) cancelCrop();
@@ -2491,6 +2537,9 @@ function updateSelectionPanel() {
   // before the early return below.
   els.cropBar.hidden = !cropping;
   els.cropButton.disabled = cropping;
+  // Uncrop only means something once a picture has a crop to give back, and the
+  // frame is modal, so it waits while one is up.
+  els.uncropButton.disabled = cropping || !item || !item.crop;
 
   // Before the early return, so letting go of the selection clears the list too.
   updateStripSelection({ reveal: true });
@@ -3251,6 +3300,7 @@ function bindControls() {
   });
 
   els.cropButton.addEventListener('click', () => startCrop());
+  els.uncropButton.addEventListener('click', () => uncropItem());
   els.cropApply.addEventListener('click', applyCrop);
   els.cropCancel.addEventListener('click', cancelCrop);
 
@@ -3377,6 +3427,12 @@ function bindControls() {
     if (!cropEdit && !ctrl && event.key.toLowerCase() === 'c' && selectedItem()) {
       event.preventDefault();
       startCrop();
+      return;
+    }
+    // U gives the whole picture back, next to C for entering the crop.
+    if (!cropEdit && !ctrl && event.key.toLowerCase() === 'u' && selectedItem()) {
+      event.preventDefault();
+      uncropItem();
       return;
     }
     // The crop frame is modal: the keys below would move the picture under it.
@@ -3772,6 +3828,7 @@ window.PepperStitch = {
   scaleItemAboutCentre,
   startCrop,
   applyCrop,
+  uncropItem,
   cancelCrop,
   pictureRect,
   canvasToSource,

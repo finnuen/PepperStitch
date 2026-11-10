@@ -965,6 +965,11 @@ kbd {
   justify-content: center;
   padding: 0 10px;
 }
+/* Remove ends a picture rather than editing it, so it keeps a row to itself,
+   across both columns. */
+.button-grid .wide {
+  grid-column: 1 / -1;
+}
 
 /* Six ways to line the composition up, in a row under the preset because they
    work on the whole composition just as it does: horizontal first, then

@@ -79,6 +79,9 @@ editor.
   the crop's shape and keeps its place on the canvas. Pull the handles to adjust
   it, drag inside to move it, and <kbd>Esc</kbd> drops it. Crop again to narrow
   what is already kept.
+- **Uncrop.** **Uncrop** (or <kbd>U</kbd>) gives the whole picture back without
+  moving the picture: the cropped part stays exactly where it was on the canvas,
+  at the size it had, and the rest of the picture appears around it.
 - **Crop to a shape.** Type a ratio — `16:9`, `4:5`, `1:1`, or a single number
   such as `1.5` — into the field on the crop bar and the frame takes that shape;
   the × beside it frees the frame again. Any of `: / * - + '` works between the
@@ -131,6 +134,7 @@ canvas it adds them to the library and places them where you let go.
 | <kbd>Ctrl</kbd>+wheel | Zoom the preview |
 | wheel | Resize the picture under the pointer |
 | <kbd>C</kbd> | Crop the selected picture |
+| <kbd>U</kbd> | Uncrop the selected picture |
 | <kbd>Shift</kbd>+drag (crop) | Keep the crop frame at 1:1 |
 | <kbd>Enter</kbd> / <kbd>Esc</kbd> | Keep or drop the crop frame |
 | arrow | Move the selected picture by 1 px |

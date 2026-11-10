@@ -1,17 +1,20 @@
 <#
     Keeps the version in CMakeLists.txt in step with the work.
 
-    project(PepperStitch VERSION x.y.z ...) is the only place the version is
+    project(PepperStitch VERSION x.y ...) is the only place the version is
     written.  CMake derives the executable's name, its version resource and
     version_generated.h from it, so bumping here is enough for the tag, the
     release asset and the running app to agree.
 
+    The version is two digits (1.14) or three (1.2.3), whichever the project
+    uses; the last digit is the one a build bumps.
+
     Modes:
-      auto    bump PATCH when a source file is newer than the last build,
-              otherwise leave the version alone
-      bump    always bump PATCH
+      auto    bump the last digit when a source file is newer than the last
+              build, otherwise leave the version alone
+      bump    always bump the last digit
       same    leave the version alone
-      set     take -Version x.y.z
+      set     take -Version x.y or x.y.z
       stamp   record that the current sources have been built
 
     Prints the version the build should carry.
@@ -30,7 +33,7 @@ $ErrorActionPreference = 'Stop'
 
 $cmake = Join-Path $Root 'CMakeLists.txt'
 $stamp = Join-Path $Root 'build\.ps-version-stamp'
-$pattern = '(?m)^project\(PepperStitch VERSION (\d+\.\d+\.\d+)'
+$pattern = '(?m)^project\(PepperStitch VERSION (\d+\.\d+(?:\.\d+)?)'
 
 $text = [System.IO.File]::ReadAllText($cmake)
 $match = [regex]::Match($text, $pattern)
@@ -77,22 +80,22 @@ switch ($Mode) {
     }
     'same' { break }
     'set' {
-        if ($Version -notmatch '^\d+\.\d+\.\d+$') {
-            throw "-Version must look like 1.2.3"
+        if ($Version -notmatch '^\d+\.\d+(\.\d+)?$') {
+            throw "-Version must look like 1.14 or 1.2.3"
         }
         if ($Version -ne $current) { Set-Version $Version }
         break
     }
     'bump' {
         $parts = $current.Split('.')
-        $parts[2] = [string]([int]$parts[2] + 1)
+        $parts[$parts.Length - 1] = [string]([int]$parts[$parts.Length - 1] + 1)
         Set-Version ($parts -join '.')
         break
     }
     'auto' {
         if (Test-SourcesChanged) {
             $parts = $current.Split('.')
-            $parts[2] = [string]([int]$parts[2] + 1)
+            $parts[$parts.Length - 1] = [string]([int]$parts[$parts.Length - 1] + 1)
             Set-Version ($parts -join '.')
         }
         break
